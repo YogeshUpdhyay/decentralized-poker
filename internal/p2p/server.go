@@ -94,5 +94,9 @@ func (s *Server) handshake(p *Peer) error {
 		logrus.Errorf("error decoding the handshake data %s\n", err)
 	}
 
+	if s.Version != hs.Version {
+
+	}
+
 	return nil
 }

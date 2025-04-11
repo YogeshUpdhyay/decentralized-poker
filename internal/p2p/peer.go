@@ -26,6 +26,7 @@ func (p *Peer) ReadLoop(msgCh chan *Message, delPeer chan net.Conn) {
 		}
 
 		msg := Message{
+			Type:    GameMessage,
 			From:    p.conn.RemoteAddr(),
 			Payload: bytes.NewReader(buff[:n]),
 		}

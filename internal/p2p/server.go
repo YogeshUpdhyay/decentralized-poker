@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/sirupsen/logrus"
 )
 
@@ -131,7 +132,26 @@ func (s *Server) Connect(addr string) net.Conn {
 }
 
 func (s *Server) pingPeer(conn net.Conn) error {
-	return nil
+	buff := []byte(constants.Ping)
+	_, err := conn.Write(buff)
+	if err != nil {
+		logrus.Errorf("error pinging the peer %s\n", err.Error())
+		return err
+	}
+
+	// awaiting pong from the server
+	buff = make([]byte, 1024)
+	_, err = conn.Read(buff)
+	if err != nil {
+		logrus.Errorf("error no response recieved from the server %s\n", err.Error())
+		return err
+	}
+
+	if string(buff) == constants.Pong {
+		return nil
+	}
+
+	return errors.New("ping encountered unexpected error")
 }
 
 func (s *Server) sendHandshake(conn net.Conn) error {

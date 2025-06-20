@@ -115,6 +115,7 @@ func (s *Server) Connect(addr string) net.Conn {
 	}
 
 	// validating the peer connection using the handshake
+	logrus.Info("sending handshake message")
 	err = s.sendHandshake(conn)
 	if err != nil {
 		logrus.Errorf("error sending handshake %s\n", err)
@@ -156,19 +157,22 @@ func (s *Server) pingPeer(conn net.Conn) error {
 
 func (s *Server) sendHandshake(conn net.Conn) error {
 	// preparing the handshake message
-	buff := make([]byte, 1024)
+	var buf bytes.Buffer
+
 	hs := Handshake{Version: s.Version}
-	if err := gob.NewEncoder(bytes.NewBuffer(buff)).Encode(&hs); err != nil {
-		logrus.Errorf("error crearing the handshake message: %s\n", err)
+
+	if err := gob.NewEncoder(&buf).Encode(hs); err != nil {
+		logrus.Errorf("error creating the handshake message: %s\n", err)
 		return err
 	}
 
-	// writing handshake to the connection
-	_, err := conn.Write(buff)
+	// Writing handshake to the connection
+	_, err := conn.Write(buf.Bytes())
 	if err != nil {
 		logrus.Errorf("error writing handshake to the connection %s\n", err)
 		return err
 	}
 
+	logrus.Info("hanshake message sent successfully")
 	return nil
 }

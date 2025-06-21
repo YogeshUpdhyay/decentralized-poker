@@ -106,15 +106,15 @@ func (d *DefaultEncryption) DecryptMessage(ciphertext []byte, symmetricKey [32]b
 	return string(decrypted), nil
 }
 
-func (d *DefaultEncryption) GenerateIdentityKey() (ed25519.PrivateKey, ed25519.PublicKey, error) {
+func (d *DefaultEncryption) GenerateIdentityKey() (ed25519.PrivateKey, error) {
 	// ed25519 key generation
-	idPubKey, idPrivKey, err := ed25519.GenerateKey(nil)
+	_, idPrivKey, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		logrus.Error(err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	return idPrivKey, idPubKey, nil
+	return idPrivKey, nil
 }
 
 func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv ed25519.PrivateKey, filePath string) error {

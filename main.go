@@ -48,5 +48,23 @@ func initializeApp() {
 }
 
 func initIdentityFlow() error {
+	password := constants.Empty
+
+	encryption := p2p.DefaultEncryption{}
+	idKey, err := encryption.GenerateIdentityKey()
+	if err != nil {
+		logrus.Errorf("error generating identity key %s", err.Error())
+		return err
+	}
+
+	err = encryption.EncryptAndSaveIdentityKey(
+		password,
+		idKey,
+		fmt.Sprintf("%s/%s", constants.ApplicationDataDir, constants.ApplicationIdentityFileName),
+	)
+	if err != nil {
+		logrus.Errorf("error encrypting and saving the key %s", err.Error())
+		return err
+	}
 	return nil
 }

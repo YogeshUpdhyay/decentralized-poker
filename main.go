@@ -1,8 +1,12 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"time"
 
+	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/sirupsen/logrus"
 )
@@ -30,4 +34,19 @@ func main() {
 
 func initializeApp() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
+
+	// check if the peer id and identity is established or not
+	_, err := os.Stat(fmt.Sprintf("%s/%s", constants.ApplicationDataDir, constants.ApplicationIdentityFileName))
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		logrus.Infof("identity not initialized")
+		err := initIdentityFlow()
+
+		if err != nil {
+			logrus.Fatalf("error initializing the identity flow %s", err.Error())
+		}
+	}
+}
+
+func initIdentityFlow() error {
+	return nil
 }

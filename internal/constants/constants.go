@@ -1,7 +1,9 @@
 package constants
 
 const (
-	Empty = ""
+	Empty                       = ""
+	ApplicationDataDir          = ".yoker"
+	ApplicationIdentityFileName = "identity.pem"
 
 	Ping = "PING"
 	Pong = "PONG"

@@ -3,6 +3,7 @@ package p2p
 import (
 	"net"
 
+	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,21 +14,21 @@ type TCPTransport struct {
 	delPeer    chan net.Conn
 }
 
-func (t *TCPTransport) ListenAndAccept() error {
+func (t *TCPTransport) ListenAndAccept(serverName string) error {
 	// start listening for peers
 	listener, err := net.Listen("tcp", t.ListenAddr)
 	if err != nil {
 		return err
 	}
 
-	logrus.Infof("server listening at %s\n", t.ListenAddr)
+	logrus.WithField(constants.ServerName, serverName).Infof("server listening at %s", t.ListenAddr)
 	t.listener = listener
 
 	// accepting connections
 	for {
 		conn, err := t.listener.Accept()
 		if err != nil {
-			logrus.Infof("error accepting connection %s\n", err)
+			logrus.Infof("error accepting connection %s", err)
 		}
 
 		// all accepted connections need to pass the handshake protocol

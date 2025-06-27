@@ -23,6 +23,7 @@ type Server struct {
 type ServerConfig struct {
 	ListenAddr string
 	Version    string
+	ServerName string
 }
 
 type Handshake struct {
@@ -50,7 +51,7 @@ func NewServer(cfg ServerConfig) *Server {
 
 func (s *Server) Start() {
 	go s.loop()
-	if err := s.transport.ListenAndAccept(); err != nil {
+	if err := s.transport.ListenAndAccept(s.ServerName); err != nil {
 		logrus.Fatal("error starting the server")
 	}
 }
@@ -61,9 +62,9 @@ func (s *Server) loop() {
 		case conn := <-s.addPeer:
 			// validating peer using handshake
 			peer := Peer{conn: conn}
-			logrus.Infof("awaiting handshake from %s\n", peer.conn.RemoteAddr())
+			logrus.WithField(constants.ServerName, s.ServerName).Infof("awaiting handshake from %s", peer.conn.RemoteAddr())
 			if err := s.handshake(&peer); err != nil {
-				logrus.Infof("handshake failed with peer %s due to %s\n", peer.conn.RemoteAddr(), err)
+				logrus.Infof("handshake failed with peer %s due to %s", peer.conn.RemoteAddr(), err)
 				break
 			}
 
@@ -72,13 +73,13 @@ func (s *Server) loop() {
 			s.peers[conn.RemoteAddr()] = &peer
 			go peer.ReadLoop(s.msgCh, s.deletePeer)
 
-			logrus.Infof("new player connected %s\n", peer.conn.RemoteAddr())
+			logrus.WithField(constants.ServerName, s.ServerName).Infof("new player connected %s", peer.conn.RemoteAddr())
 		case msg := <-s.msgCh:
 			s.handler.HandleMessage(msg)
 		case conn := <-s.deletePeer:
 			// connection is closed removing from peers
 			delete(s.peers, conn.RemoteAddr())
-			logrus.Infof("player disconnected %s\n", conn.RemoteAddr())
+			logrus.Infof("player disconnected %s", conn.RemoteAddr())
 		}
 	}
 }
@@ -88,13 +89,13 @@ func (s *Server) handshake(p *Peer) error {
 	buff := make([]byte, 1024)
 	n, err := p.conn.Read(buff)
 	if err != nil {
-		logrus.Errorf("error reading hanshake data %s\n", err)
+		logrus.Errorf("error reading hanshake data %s", err)
 		return err
 	}
 
 	hs := Handshake{}
 	if err := gob.NewDecoder(bytes.NewReader(buff[:n])).Decode(&hs); err != nil {
-		logrus.Errorf("error decoding the handshake data %s\n", err)
+		logrus.Errorf("error decoding the handshake data %s", err)
 		return err
 	}
 
@@ -103,56 +104,35 @@ func (s *Server) handshake(p *Peer) error {
 		return errors.New("invalid peer: version mismatch")
 	}
 
+	logrus.WithField(constants.ServerName, s.ServerName).Info("handshake recieved and version matched.")
 	return nil
 }
 
-func (s *Server) Connect(addr string) net.Conn {
+func (s *Server) Connect(addr string) error {
 	// connecting to the peer
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		logrus.Errorf("error connecting to peer")
-		return nil
+		return err
 	}
 
 	// validating the peer connection using the handshake
-	logrus.Info("sending handshake message")
+	logrus.WithField(constants.ServerName, s.ServerName).Info("sending handshake message")
 	err = s.sendHandshake(conn)
 	if err != nil {
-		logrus.Errorf("error sending handshake %s\n", err)
-		return nil
-	}
-
-	// check if the conn is active post connection
-	// if active then add the conn to peers
-	if err := s.pingPeer(conn); err != nil {
-		logrus.Infof("peer is not active")
-		return nil
-	}
-
-	return conn
-}
-
-func (s *Server) pingPeer(conn net.Conn) error {
-	buff := []byte(constants.Ping)
-	_, err := conn.Write(buff)
-	if err != nil {
-		logrus.Errorf("error pinging the peer %s\n", err.Error())
+		logrus.Errorf("error sending handshake %s", err)
 		return err
 	}
 
-	// awaiting pong from the server
-	buff = make([]byte, 1024)
-	_, err = conn.Read(buff)
-	if err != nil {
-		logrus.Errorf("error no response recieved from the server %s\n", err.Error())
-		return err
-	}
+	// handshake was success adding it to the peers
+	// starting the read loop
+	peer := Peer{conn: conn}
+	s.peers[conn.RemoteAddr()] = &peer
+	go peer.ReadLoop(s.msgCh, s.deletePeer)
 
-	if string(buff) == constants.Pong {
-		return nil
-	}
+	logrus.WithField(constants.ServerName, s.ServerName).Infof("new player connected %s", peer.conn.RemoteAddr())
 
-	return errors.New("ping encountered unexpected error")
+	return nil
 }
 
 func (s *Server) sendHandshake(conn net.Conn) error {
@@ -162,17 +142,17 @@ func (s *Server) sendHandshake(conn net.Conn) error {
 	hs := Handshake{Version: s.Version}
 
 	if err := gob.NewEncoder(&buf).Encode(hs); err != nil {
-		logrus.Errorf("error creating the handshake message: %s\n", err)
+		logrus.Errorf("error creating the handshake message: %s", err)
 		return err
 	}
 
 	// Writing handshake to the connection
 	_, err := conn.Write(buf.Bytes())
 	if err != nil {
-		logrus.Errorf("error writing handshake to the connection %s\n", err)
+		logrus.Errorf("error writing handshake to the connection %s", err)
 		return err
 	}
 
-	logrus.Info("hanshake message sent successfully")
+	logrus.WithField(constants.ServerName, s.ServerName).Info("hanshake message sent successfully")
 	return nil
 }

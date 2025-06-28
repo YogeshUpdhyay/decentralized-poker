@@ -121,12 +121,14 @@ func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv ed
 	// generating salt
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
+		logrus.Errorf("error generating salt %s", err.Error())
 		return err
 	}
 
 	// generate key from salt and passphrase
 	key, err := scrypt.Key([]byte(passphrase), salt, 1<<15, 8, 1, 32) // N=32k, r=8, p=1
 	if err != nil {
+		logrus.Errorf("error generating id file encryption key %s", err.Error())
 		return err
 	}
 
@@ -146,6 +148,7 @@ func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv ed
 	}
 
 	ciphertext := aesgcm.Seal(nil, nonce, priv, nil)
+	logrus.Info("identity key encrypted successfully!")
 
 	// store (salt + nonce + ciphertext), all base64-encoded
 	combined := append(salt, append(nonce, ciphertext...)...)

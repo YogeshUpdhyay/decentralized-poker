@@ -2,11 +2,14 @@ package p2p
 
 import (
 	"bytes"
-	"net"
+
+	libp2pnetwork "github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type Peer struct {
-	conn net.Conn
+	conn   libp2pnetwork.Stream
+	Status string
 }
 
 func (p *Peer) Send(b []byte) error {
@@ -17,8 +20,9 @@ func (p *Peer) Send(b []byte) error {
 	return nil
 }
 
-func (p *Peer) ReadLoop(msgCh chan *Message, delPeer chan net.Conn) {
-	buff := make([]byte, 1024)
+func (p *Peer) ReadLoop(msgCh chan *Message, delPeer chan peer.ID) {
+	// read loop for a stream
+	buff := make([]byte, 4096)
 	for {
 		n, err := p.conn.Read(buff)
 		if err != nil {
@@ -27,11 +31,14 @@ func (p *Peer) ReadLoop(msgCh chan *Message, delPeer chan net.Conn) {
 
 		msg := Message{
 			Type:    GameMessage,
-			From:    p.conn.RemoteAddr(),
+			From:    p.conn.Conn().RemotePeer(),
 			Payload: bytes.NewReader(buff[:n]),
 		}
+
 		msgCh <- &msg
 	}
+
+	// close connection and mark peer as deleted in the list
 	p.conn.Close()
-	delPeer <- p.conn
+	delPeer <- p.conn.Conn().RemotePeer()
 }

@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/scrypt"
 )
@@ -22,6 +23,9 @@ type Encryption interface {
 	GenerateSymmetricKeyFromSharedSecret(sharedSecret []byte) [32]byte
 	EncryptMessage(message string, symmetricKey [32]byte) ([]byte, []byte, error)
 	DecryptMessage(ciphertext []byte, symmetricKey [32]byte, nonce []byte) (string, error)
+	GenerateIdentityKey() (ed25519.PrivateKey, error)
+	EncryptAndSaveIdentityKey(passphrase string, priv ed25519.PrivateKey, filePath string)
+	LoadAndDecryptKey(passphrase, filePath string) (ed25519.PrivateKey, error)
 }
 
 type DefaultEncryption struct{}
@@ -106,18 +110,17 @@ func (d *DefaultEncryption) DecryptMessage(ciphertext []byte, symmetricKey [32]b
 	return string(decrypted), nil
 }
 
-func (d *DefaultEncryption) GenerateIdentityKey() (ed25519.PrivateKey, error) {
-	// ed25519 key generation
-	_, idPrivKey, err := ed25519.GenerateKey(nil)
+func (d *DefaultEncryption) GenerateIdentityKey() (libp2pcrypto.PrivKey, error) {
+	// Generate a libp2p-compatible ed25519 key
+	priv, _, err := libp2pcrypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
-		logrus.Error(err)
 		return nil, err
 	}
 
-	return idPrivKey, nil
+	return priv, nil
 }
 
-func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv ed25519.PrivateKey, filePath string) error {
+func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv libp2pcrypto.PrivKey, filePath string) error {
 	// generating salt
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
@@ -147,7 +150,9 @@ func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv ed
 		return err
 	}
 
-	ciphertext := aesgcm.Seal(nil, nonce, priv, nil)
+	privBytes, err := libp2pcrypto.MarshalPrivateKey(priv)
+
+	ciphertext := aesgcm.Seal(nil, nonce, privBytes, nil)
 	logrus.Info("identity key encrypted successfully!")
 
 	// store (salt + nonce + ciphertext), all base64-encoded
@@ -157,7 +162,7 @@ func (d *DefaultEncryption) EncryptAndSaveIdentityKey(passphrase string, priv ed
 	return os.WriteFile(filePath, []byte(encoded), 0600)
 }
 
-func (d *DefaultEncryption) LoadAndDecryptKey(passphrase, filePath string) (ed25519.PrivateKey, error) {
+func (d *DefaultEncryption) LoadAndDecryptKey(passphrase, filePath string) (libp2pcrypto.PrivKey, error) {
 	// read base64-encoded file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -194,5 +199,11 @@ func (d *DefaultEncryption) LoadAndDecryptKey(passphrase, filePath string) (ed25
 		return nil, err
 	}
 
-	return ed25519.PrivateKey(plaintext), nil
+	// 5. Reconstruct libp2p private key
+	priv, err := libp2pcrypto.UnmarshalPrivateKey(plaintext)
+	if err != nil {
+		return nil, err
+	}
+
+	return priv, nil
 }

@@ -2,7 +2,8 @@ package p2p
 
 import (
 	"io"
-	"net"
+
+	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 type MessageType uint8
@@ -16,6 +17,6 @@ const (
 
 type Message struct {
 	Type    MessageType
-	From    net.Addr
+	From    peer.ID
 	Payload io.Reader
 }

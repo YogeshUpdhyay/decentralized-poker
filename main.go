@@ -15,17 +15,19 @@ func main() {
 	// initialize application utils
 	initializeApp()
 
-	peer1Cfg := p2p.ServerConfig{ListenAddr: ":3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
+	peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
 	peer1 := p2p.NewServer(peer1Cfg)
 	go peer1.Start()
 	time.Sleep(1 * time.Second)
 
-	peer2Cfg := p2p.ServerConfig{ListenAddr: ":4000", Version: "ypoker v0.1-alpha", ServerName: "yoker beta"}
+	addressesPeer1 := peer1.GetMyFullAddr()
+
+	peer2Cfg := p2p.ServerConfig{ListenAddr: "4000", Version: "ypoker v0.1-alpha", ServerName: "yoker beta", IdentityFilePath: "/Users/yogesh.upadhyay/Documents/projects/decentralized-poker/.joker/identity.key"}
 	peer2 := p2p.NewServer(peer2Cfg)
 	go peer2.Start()
 	time.Sleep(1 * time.Second)
 
-	err := peer2.Connect(":3000")
+	err := peer2.Connect(addressesPeer1[0])
 	if err != nil {
 		logrus.Info("peer not connected")
 	}
@@ -44,7 +46,10 @@ func initializeApp() {
 		if err != nil {
 			logrus.Fatalf("error initializing the identity flow %s", err.Error())
 		}
+
+		return
 	}
+	logrus.Infof("identity already present, skipping initialization")
 }
 
 func initIdentityFlow() error {

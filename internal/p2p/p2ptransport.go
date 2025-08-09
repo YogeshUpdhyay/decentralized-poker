@@ -32,7 +32,7 @@ func (t *P2PTransport) ListenAndAccept(serverName string) error {
 	}
 	t.host = h
 
-	logrus.WithField(constants.ServerName, serverName).Infof("server listening at %s", t.host.Addrs())
+	logrus.WithField(constants.ServerName, fmt.Sprintf("%s@%s", serverName, h.ID().String())).Infof("server listening at %v", t.GetMyFullAddr())
 
 	t.host.SetStreamHandler("/ypoker/1.0.0", func(s libp2pnetwork.Stream) {
 		logrus.WithField(constants.ServerName, serverName).Infof("incoming stream from %s adding to peer list", s.Conn().RemotePeer())
@@ -42,11 +42,11 @@ func (t *P2PTransport) ListenAndAccept(serverName string) error {
 	return nil
 }
 
-func (p *P2PTransport) GetMyFullAddr() []string {
+func (t *P2PTransport) GetMyFullAddr() []string {
 	var addrs []string
-	for _, addr := range p.host.Addrs() {
+	for _, addr := range t.host.Addrs() {
 		// Append /p2p/<peer-id> to each base address
-		fullAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", p.host.ID().String()))
+		fullAddr, _ := ma.NewMultiaddr(fmt.Sprintf("/p2p/%s", t.host.ID().String()))
 		addrWithID := addr.Encapsulate(fullAddr)
 		addrs = append(addrs, addrWithID.String())
 	}

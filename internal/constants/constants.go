@@ -2,7 +2,7 @@ package constants
 
 const (
 	Empty                       = ""
-	ApplicationDataDir          = ".joker"
+	ApplicationDataDir          = ".yoker"
 	ApplicationIdentityFileName = "identity.key"
 
 	Ping = "PING"

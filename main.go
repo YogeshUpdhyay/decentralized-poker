@@ -1,52 +1,60 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
-	"github.com/sirupsen/logrus"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
-	// initialize application utils
-	initializeApp()
+	ctx := context.Background()
 
-	peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
-	peer1 := p2p.NewServer(peer1Cfg)
-	go peer1.Start()
-	time.Sleep(1 * time.Second)
-	select {}
+	// initialize application utils
+	initializeApp(ctx)
+
+	// // start the peer
+	// peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
+	// peer1 := p2p.NewServer(peer1Cfg)
+	// go peer1.Start()
+
+	// time.Sleep(1 * time.Second)
+	// select {}
+
+	uiImpl := ui.DefaultUI{}
+	uiImpl.StartUI(ctx)
 }
 
-func initializeApp() {
-	logrus.SetFormatter(&logrus.JSONFormatter{})
+func initializeApp(ctx context.Context) {
+	log.SetFormatter(&log.JSONFormatter{})
 
 	// check if the peer id and identity is established or not
 	_, err := os.Stat(fmt.Sprintf("%s/%s", constants.ApplicationDataDir, constants.ApplicationIdentityFileName))
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		logrus.Infof("identity not initialized")
-		err := initIdentityFlow()
+		log.WithContext(ctx).Infof("identity not initialized")
+		err := initIdentityFlow(ctx)
 
 		if err != nil {
-			logrus.Fatalf("error initializing the identity flow %s", err.Error())
+			log.WithContext(ctx).Fatalf("error initializing the identity flow %s", err.Error())
 		}
 
 		return
 	}
-	logrus.Infof("identity already present, skipping initialization")
+	log.WithContext(ctx).Infof("identity already present, skipping initialization")
 }
 
-func initIdentityFlow() error {
+func initIdentityFlow(ctx context.Context) error {
 	password := constants.Empty
 
 	encryption := p2p.DefaultEncryption{}
 	idKey, err := encryption.GenerateIdentityKey()
 	if err != nil {
-		logrus.Errorf("error generating identity key %s", err.Error())
+		log.WithContext(ctx).Errorf("error generating identity key %s", err.Error())
 		return err
 	}
 
@@ -56,7 +64,7 @@ func initIdentityFlow() error {
 		fmt.Sprintf("%s/%s", constants.ApplicationDataDir, constants.ApplicationIdentityFileName),
 	)
 	if err != nil {
-		logrus.Errorf("error encrypting and saving the key %s", err.Error())
+		log.WithContext(ctx).Errorf("error encrypting and saving the key %s", err.Error())
 		return err
 	}
 	return nil

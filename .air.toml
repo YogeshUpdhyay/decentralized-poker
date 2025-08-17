@@ -4,8 +4,8 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  bin = "./bin/ypoker"
-  cmd = "make run"
+  bin = "./bin/yoker"
+  cmd = "go build -o ./bin/yoker ."
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata"]
   exclude_file = []

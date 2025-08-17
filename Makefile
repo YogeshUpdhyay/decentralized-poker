@@ -4,5 +4,8 @@ build:
 run: build
 	@./bin/ypoker
 
+dev:
+	@air
+
 test:
 	go test ./...

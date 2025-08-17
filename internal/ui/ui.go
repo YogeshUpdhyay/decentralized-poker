@@ -5,6 +5,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	fyneApp "fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/theme"
+
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/pages"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
@@ -20,6 +22,7 @@ type DefaultUI struct{}
 // initialize the UI and start the application
 func (ui *DefaultUI) StartUI(ctx context.Context) error {
 	app := fyneApp.New()
+	app.Settings().SetTheme(theme.DarkTheme())
 	window := app.NewWindow("yoker")
 	window.Resize(fyne.NewSize(constants.WindowWidth, constants.WindowHeight))
 

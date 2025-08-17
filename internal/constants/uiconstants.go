@@ -7,4 +7,7 @@ const (
 
 	LoginRoute   = "login"
 	DefaultRoute = "default"
+
+	// logo path
+	LogoPath = "assets/yChat.png"
 )

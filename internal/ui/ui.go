@@ -19,7 +19,7 @@ type UI interface {
 type DefaultUI struct{}
 
 // initialize the UI and start the application
-func (ui *DefaultUI) StartUI(ctx context.Context) error {
+func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) error {
 	app := fyneApp.New()
 	app.Settings().SetTheme(theme.DarkTheme())
 	window := app.NewWindow("yoker")
@@ -32,7 +32,11 @@ func (ui *DefaultUI) StartUI(ctx context.Context) error {
 	// registering pages to router
 	router.Register(constants.LoginRoute, &pages.Login{})
 	router.Register(constants.ChatRoute, &pages.Chat{})
-	router.Navigate(constants.LoginRoute)
+	router.Register(constants.RegisterRoute, &pages.Register{})
+	router.Navigate(constants.RegisterRoute)
+	if isIdentityInitialized {
+		router.Navigate(constants.LoginRoute)
+	}
 
 	// content is set by the router
 	window.ShowAndRun()

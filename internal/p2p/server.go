@@ -152,6 +152,28 @@ func (s *Server) GetMyFullAddr() []string {
 	return s.transport.GetMyFullAddr()
 }
 
+func (s *Server) InitializeIdentityFlow(ctx context.Context, password string) error {
+	encryption := DefaultEncryption{}
+	idKey, err := encryption.GenerateIdentityKey()
+	if err != nil {
+		logrus.WithContext(ctx).Errorf("error generating identity key %s", err.Error())
+		return err
+	}
+
+	err = encryption.EncryptAndSaveIdentityKey(
+		password,
+		idKey,
+		s.IdentityFilePath,
+	)
+	if err != nil {
+		logrus.WithContext(ctx).Errorf("error saving identity key %s", err.Error())
+		return err
+	}
+
+	logrus.WithContext(ctx).Infof("identity key saved successfully at %s", s.IdentityFilePath)
+	return nil
+}
+
 // ignored for libp2p
 func (s *Server) handshake(p *Peer) error {
 	// read the handshake message and validate

@@ -1,9 +1,13 @@
 package models
 
-import "fyne.io/fyne/v2"
+import (
+	"context"
+
+	"fyne.io/fyne/v2"
+)
 
 type Page interface {
-	Content() fyne.CanvasObject
-	OnShow() // optional: refresh data when navigated to
-	OnHide()
+	Content(ctx context.Context) fyne.CanvasObject
+	OnShow(ctx context.Context) // optional: refresh data when navigated to
+	OnHide(ctx context.Context)
 }

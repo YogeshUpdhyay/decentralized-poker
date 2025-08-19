@@ -10,22 +10,23 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
 	log "github.com/sirupsen/logrus"
 )
 
-type Login struct {
+type Register struct {
 }
 
-func (l *Login) OnShow(_ context.Context) {
+func (l *Register) OnShow(_ context.Context) {
 	// Logic to execute when the login page is shown
 }
 
-func (l *Login) OnHide(_ context.Context) {
+func (l *Register) OnHide(_ context.Context) {
 	// Logic to execute when the login page is hidden
 }
 
-func (l *Login) Content(_ context.Context) fyne.CanvasObject {
+func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 	// underlay container with a border
 	underLayContainer := canvas.NewRectangle(color.Transparent)
 	underLayContainer.SetMinSize(fyne.NewSize(350, 220))
@@ -49,18 +50,38 @@ func (l *Login) Content(_ context.Context) fyne.CanvasObject {
 	passwordString := binding.NewString()
 	password.Bind(passwordString)
 
+	confirmPassword := widget.NewPasswordEntry()
+	confirmPassword.SetPlaceHolder("Confirm Password")
+	confirmPasswordString := binding.NewString()
+	confirmPassword.Bind(confirmPasswordString)
+
 	submit := widget.NewButton("Submit", func() {
-		userNameValue, err := userNameString.Get()
+		_, err := userNameString.Get()
 		if err != nil {
 			log.Errorf("failed to get username: %v", err)
 			return
 		}
+
 		passwordValue, err := passwordString.Get()
 		if err != nil {
 			log.Errorf("failed to get password: %v", err)
 			return
 		}
-		log.Infof("login button clicked %s %s", userNameValue, passwordValue)
+
+		confirmPasswordValue, err := confirmPasswordString.Get()
+		if err != nil {
+			log.Errorf("failed to get confirm password: %v", err)
+			return
+		}
+
+		if passwordValue != confirmPasswordValue {
+			log.Errorf("password and confirm password do not match")
+			return
+		}
+
+		peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
+		peer1 := p2p.NewServer(peer1Cfg)
+		peer1.InitializeIdentityFlow(ctx, passwordValue)
 
 		router.GetRouter().Navigate(constants.ChatRoute)
 	})
@@ -70,7 +91,7 @@ func (l *Login) Content(_ context.Context) fyne.CanvasObject {
 	vBoxsize := canvas.NewRectangle(color.Transparent)
 	vBoxsize.SetMinSize(fyne.NewSize(300, 125))
 
-	login := container.NewCenter(
+	register := container.NewCenter(
 		container.NewStack(
 			underLayContainer,
 			container.NewCenter(
@@ -80,6 +101,7 @@ func (l *Login) Content(_ context.Context) fyne.CanvasObject {
 						logo,
 						username,
 						password,
+						confirmPassword,
 						submit,
 						vBoxsize,
 					),
@@ -88,5 +110,5 @@ func (l *Login) Content(_ context.Context) fyne.CanvasObject {
 		),
 	)
 
-	return login
+	return register
 }

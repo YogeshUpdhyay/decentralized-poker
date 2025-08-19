@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"context"
 	"image/color"
 
 	"fyne.io/fyne/v2"
@@ -12,15 +13,15 @@ import (
 type Chat struct {
 }
 
-func (c *Chat) OnShow() {
+func (c *Chat) OnShow(_ context.Context) {
 	// Logic to execute when the chat page is shown
 }
 
-func (c *Chat) OnHide() {
+func (c *Chat) OnHide(_ context.Context) {
 	// Logic to execute when the chat page is hidden
 }
 
-func (c *Chat) Content() fyne.CanvasObject {
+func (c *Chat) Content(_ context.Context) fyne.CanvasObject {
 	// underlay container with a border
 	underLayContainer := canvas.NewRectangle(color.Transparent)
 	underLayContainer.SetMinSize(fyne.NewSize(350, 220))

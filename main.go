@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
-	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,8 +14,17 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// initialize application utils
+	// initialize application
 	initializeApp(ctx)
+	uiImpl := ui.DefaultUI{}
+
+	if !identityFileExists() {
+		log.WithContext(ctx).Infof("identity not initialized, starting initialization flow")
+		uiImpl.StartUI(ctx, false)
+		return
+	}
+	log.WithContext(ctx).Info("identity already present, skipping initialization, starting UI")
+	uiImpl.StartUI(ctx, true)
 
 	// // start the peer
 	// peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
@@ -26,46 +34,15 @@ func main() {
 	// time.Sleep(1 * time.Second)
 	// select {}
 
-	uiImpl := ui.DefaultUI{}
-	uiImpl.StartUI(ctx)
 }
 
-func initializeApp(ctx context.Context) {
-	log.SetFormatter(&log.JSONFormatter{})
-
-	// check if the peer id and identity is established or not
+// check if the identity file exists
+func identityFileExists() bool {
 	_, err := os.Stat(fmt.Sprintf("%s/%s", constants.ApplicationDataDir, constants.ApplicationIdentityFileName))
-	if err != nil && errors.Is(err, os.ErrNotExist) {
-		log.WithContext(ctx).Infof("identity not initialized")
-		err := initIdentityFlow(ctx)
-
-		if err != nil {
-			log.WithContext(ctx).Fatalf("error initializing the identity flow %s", err.Error())
-		}
-
-		return
-	}
-	log.WithContext(ctx).Infof("identity already present, skipping initialization")
+	return !errors.Is(err, os.ErrNotExist)
 }
 
-func initIdentityFlow(ctx context.Context) error {
-	password := constants.Empty
-
-	encryption := p2p.DefaultEncryption{}
-	idKey, err := encryption.GenerateIdentityKey()
-	if err != nil {
-		log.WithContext(ctx).Errorf("error generating identity key %s", err.Error())
-		return err
-	}
-
-	err = encryption.EncryptAndSaveIdentityKey(
-		password,
-		idKey,
-		fmt.Sprintf("%s/%s", constants.ApplicationDataDir, constants.ApplicationIdentityFileName),
-	)
-	if err != nil {
-		log.WithContext(ctx).Errorf("error encrypting and saving the key %s", err.Error())
-		return err
-	}
-	return nil
+func initializeApp(_ context.Context) {
+	log.SetFormatter(&log.JSONFormatter{})
+	// creating default config yml file
 }

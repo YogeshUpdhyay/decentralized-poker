@@ -5,9 +5,10 @@ const (
 	WindowWidth  = 1200
 	WindowHeight = 900
 
-	LoginRoute   = "login"
-	ChatRoute    = "chat"
-	DefaultRoute = "default"
+	LoginRoute    = "login"
+	ChatRoute     = "chat"
+	RegisterRoute = "register"
+	DefaultRoute  = "default"
 
 	// logo path
 	LogoPath = "assets/yChat.png"

@@ -2,30 +2,37 @@ package router
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
-	"github.com/YogeshUpdhyay/ypoker/internal/ui/pages"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
 )
 
 type Router struct {
-	stack   *fyne.Container
-	pages   map[string]pages.Page
-	current string
+	rootCanvas fyne.Canvas
+	pages      map[string]models.Page
+	current    string
 }
 
-func NewRouter() *Router {
-	// stack holds all pages on top of each other
-	return &Router{
-		stack: container.NewStack(), // we’ll add pages later
-		pages: map[string]pages.Page{},
+var router *Router
+
+func NewRouter(rootCanvas fyne.Canvas) *Router {
+	router = &Router{
+		pages:      map[string]models.Page{},
+		rootCanvas: rootCanvas,
 	}
+	return router
 }
 
-func (r *Router) Container() *fyne.Container { return r.stack }
+func GetRouter() *Router {
+	return router
+}
 
-func (r *Router) Register(name string, p pages.Page) {
-	r.pages[name] = p
-	r.stack.Add(p.Content()) // all pages live in the stack
-	p.Content().Hide()       // default hidden
+func (r *Router) Container() {
+	fyne.Do(func() {
+		r.rootCanvas.SetContent(r.pages[r.current].Content())
+	})
+}
+
+func (r *Router) Register(name string, p models.Page) {
+	r.pages[name] = p // default hidden
 }
 
 func (r *Router) Navigate(name string) {
@@ -34,14 +41,14 @@ func (r *Router) Navigate(name string) {
 	}
 	// hide current
 	if cur, ok := r.pages[r.current]; ok {
-		cur.Content().Hide()
 		cur.OnHide()
 	}
 
 	// show next
 	if nxt, ok := r.pages[name]; ok {
-		nxt.Content().Show()
 		nxt.OnShow()
 		r.current = name
 	}
+
+	r.Container()
 }

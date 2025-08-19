@@ -6,8 +6,11 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
+	log "github.com/sirupsen/logrus"
 )
 
 type Login struct {
@@ -24,29 +27,47 @@ func (l *Login) OnHide() {
 func (l *Login) Content() fyne.CanvasObject {
 	// underlay container with a border
 	underLayContainer := canvas.NewRectangle(color.Transparent)
-	underLayContainer.SetMinSize(fyne.NewSize(320, 220))
+	underLayContainer.SetMinSize(fyne.NewSize(350, 220))
 	underLayContainer.CornerRadius = 10
 	underLayContainer.StrokeColor = color.White
 	underLayContainer.StrokeWidth = 2
 
 	// logo
 	logo := canvas.NewImageFromFile(constants.LogoPath)
-	logo.FillMode = canvas.ImageFillOriginal
-	logo.Resize(fyne.NewSize(100, 100))
+	logo.FillMode = canvas.ImageFillContain
+	logo.SetMinSize(fyne.NewSize(100, 100))
 
-	// form elements
+	// form elements and data bindings
 	username := widget.NewEntry()
 	username.SetPlaceHolder("Username")
+	userNameString := binding.NewString()
+	username.Bind(userNameString)
 
 	password := widget.NewPasswordEntry()
 	password.SetPlaceHolder("Password")
+	passwordString := binding.NewString()
+	password.Bind(passwordString)
 
-	submit := widget.NewButton("Submit", func() {})
-	submit.Resize(fyne.NewSize(300*0.75, 40))
+	submit := widget.NewButton("Submit", func() {
+		userNameValue, err := userNameString.Get()
+		if err != nil {
+			log.Errorf("failed to get username: %v", err)
+			return
+		}
+		passwordValue, err := passwordString.Get()
+		if err != nil {
+			log.Errorf("failed to get password: %v", err)
+			return
+		}
+		log.Infof("login button clicked %s %s", userNameValue, passwordValue)
+
+		router.GetRouter().Navigate(constants.ChatRoute)
+	})
+	submit.Alignment = widget.ButtonAlignCenter
 
 	// vbox size
 	vBoxsize := canvas.NewRectangle(color.Transparent)
-	vBoxsize.SetMinSize(fyne.NewSize(300, 200))
+	vBoxsize.SetMinSize(fyne.NewSize(300, 125))
 
 	login := container.NewCenter(
 		container.NewStack(
@@ -54,10 +75,11 @@ func (l *Login) Content() fyne.CanvasObject {
 			container.NewCenter(
 				container.NewPadded(
 					container.NewVBox(
+						vBoxsize,
 						logo,
 						username,
 						password,
-						container.NewWithoutLayout(submit),
+						submit,
 						vBoxsize,
 					),
 				),
@@ -65,5 +87,5 @@ func (l *Login) Content() fyne.CanvasObject {
 		),
 	)
 
-	return container.NewCenter(login)
+	return login
 }

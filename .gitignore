@@ -1,3 +1,4 @@
 bin
 .yoker
 .vscode
+tmp/*

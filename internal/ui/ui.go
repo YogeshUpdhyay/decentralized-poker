@@ -10,7 +10,6 @@ import (
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/pages"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
-	log "github.com/sirupsen/logrus"
 )
 
 type UI interface {
@@ -25,16 +24,17 @@ func (ui *DefaultUI) StartUI(ctx context.Context) error {
 	app.Settings().SetTheme(theme.DarkTheme())
 	window := app.NewWindow("yoker")
 	window.Resize(fyne.NewSize(constants.WindowWidth, constants.WindowHeight))
+	rootCanvas := window.Canvas()
 
 	// get router
-	router := router.NewRouter()
-	log.WithContext(ctx).Info("router initialized")
+	router := router.NewRouter(rootCanvas)
 
 	// registering pages to router
 	router.Register(constants.LoginRoute, &pages.Login{})
+	router.Register(constants.ChatRoute, &pages.Chat{})
 	router.Navigate(constants.LoginRoute)
 
-	window.SetContent(router.Container())
+	// content is set by the router
 	window.ShowAndRun()
 
 	return nil

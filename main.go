@@ -8,6 +8,7 @@ import (
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,21 +20,18 @@ func main() {
 	uiImpl := ui.DefaultUI{}
 
 	if !identityFileExists() {
+		// writing default config file
+		log.WithContext(ctx).Info("first startup, creating thte application config file")
+		if err := utils.WriteAppConfig(); err != nil {
+			log.WithContext(ctx).WithError(err).Fatal("failed to write default config file")
+		}
+
 		log.WithContext(ctx).Infof("identity not initialized, starting initialization flow")
 		uiImpl.StartUI(ctx, false)
 		return
 	}
 	log.WithContext(ctx).Info("identity already present, skipping initialization, starting UI")
 	uiImpl.StartUI(ctx, true)
-
-	// // start the peer
-	// peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
-	// peer1 := p2p.NewServer(peer1Cfg)
-	// go peer1.Start()
-
-	// time.Sleep(1 * time.Second)
-	// select {}
-
 }
 
 // check if the identity file exists
@@ -44,5 +42,4 @@ func identityFileExists() bool {
 
 func initializeApp(_ context.Context) {
 	log.SetFormatter(&log.JSONFormatter{})
-	// creating default config yml file
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -79,11 +80,19 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 			return
 		}
 
-		peer1Cfg := p2p.ServerConfig{ListenAddr: "3000", Version: "ypoker v0.1-alpha", ServerName: "yoker alpha"}
-		peer1 := p2p.NewServer(peer1Cfg)
-		peer1.InitializeIdentityFlow(ctx, passwordValue)
+		appConfig, err := utils.GetAppConfig()
+		if err != nil {
+			log.Errorf("failed to get application config: %v", err)
+			return
+		}
 
-		router.GetRouter().Navigate(constants.ChatRoute)
+		serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
+		server := p2p.NewServer(serverConfig)
+		server.InitializeIdentityFlow(ctx, passwordValue)
+		go server.Start()
+		log.Infof("serever started with addresses: %+v", server.GetMyFullAddr())
+
+		router.GetRouter().Navigate(ctx, constants.ChatRoute)
 	})
 	submit.Alignment = widget.ButtonAlignCenter
 

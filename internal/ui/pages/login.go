@@ -25,7 +25,7 @@ func (l *Login) OnHide(_ context.Context) {
 	// Logic to execute when the login page is hidden
 }
 
-func (l *Login) Content(_ context.Context) fyne.CanvasObject {
+func (l *Login) Content(ctx context.Context) fyne.CanvasObject {
 	// underlay container with a border
 	underLayContainer := canvas.NewRectangle(color.Transparent)
 	underLayContainer.SetMinSize(fyne.NewSize(350, 220))
@@ -62,7 +62,7 @@ func (l *Login) Content(_ context.Context) fyne.CanvasObject {
 		}
 		log.Infof("login button clicked %s %s", userNameValue, passwordValue)
 
-		router.GetRouter().Navigate(constants.ChatRoute)
+		router.GetRouter().Navigate(ctx, constants.ChatRoute)
 	})
 	submit.Alignment = widget.ButtonAlignCenter
 

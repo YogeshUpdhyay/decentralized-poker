@@ -27,15 +27,15 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	rootCanvas := window.Canvas()
 
 	// get router
-	router := router.NewRouter(rootCanvas)
+	router := router.NewRouter(ctx, rootCanvas)
 
 	// registering pages to router
-	router.Register(constants.LoginRoute, &pages.Login{})
-	router.Register(constants.ChatRoute, &pages.Chat{})
-	router.Register(constants.RegisterRoute, &pages.Register{})
-	router.Navigate(constants.RegisterRoute)
+	router.Register(ctx, constants.LoginRoute, &pages.Login{})
+	router.Register(ctx, constants.ChatRoute, &pages.Chat{})
+	router.Register(ctx, constants.RegisterRoute, &pages.Register{})
+	router.Navigate(ctx, constants.RegisterRoute)
 	if isIdentityInitialized {
-		router.Navigate(constants.LoginRoute)
+		router.Navigate(ctx, constants.LoginRoute)
 	}
 
 	// content is set by the router

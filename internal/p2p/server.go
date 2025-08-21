@@ -55,6 +55,9 @@ type Handshake struct {
 }
 
 func NewServer(cfg ServerConfig) *Server {
+	// apply default values if not set
+	cfg.ApplyDefaults()
+
 	server := &Server{
 		ServerConfig: cfg,
 		handler:      &DefaultHandler{},

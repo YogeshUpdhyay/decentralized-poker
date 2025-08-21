@@ -9,16 +9,18 @@ import (
 )
 
 type AppConfig struct {
-	Port    string `yaml:"port"`
-	Name    string `yaml:"server_name"`
-	Version string `yaml:"version"`
+	Port           string `yaml:"port"`
+	Name           string `yaml:"server_name"`
+	Version        string `yaml:"version"`
+	StreamProtocol string `yaml:"stream_protocol"`
 }
 
 func DefaultAppConfig() AppConfig {
 	return AppConfig{
-		Port:    constants.ServerPortDefault,
-		Name:    constants.ServerNameDefault,
-		Version: constants.ServerVersionDefault,
+		Port:           constants.ServerPortDefault,
+		Name:           constants.ServerNameDefault,
+		Version:        constants.ServerVersionDefault,
+		StreamProtocol: constants.StreamProtocolDefault,
 	}
 }
 
@@ -42,18 +44,20 @@ func WriteAppConfig() error {
 
 // ReadConfigYML reads the config from the default path in constants
 
-func GetAppConfig() (AppConfig, error) {
+func GetAppConfig() AppConfig {
 	var config AppConfig
 	path := filepath.Join(constants.ApplicationDataDir, constants.ApplicationConfigFileName)
 	file, err := os.Open(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return DefaultAppConfig(), nil
-		}
-		return config, err
+		return DefaultAppConfig()
 	}
 	defer file.Close()
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&config)
-	return config, err
+
+	if err != nil {
+		return DefaultAppConfig()
+	}
+
+	return config
 }

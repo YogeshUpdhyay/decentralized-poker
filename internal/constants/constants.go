@@ -11,9 +11,10 @@ const (
 
 	ServerName = "serverName"
 
-	ServerNameDefault    = "yoker alpha"
-	ServerPortDefault    = ":3000"
-	ServerVersionDefault = "yoker1.0.0"
+	ServerNameDefault     = "yoker alpha"
+	ServerPortDefault     = "3000"
+	ServerVersionDefault  = "yoker1.0.0"
+	StreamProtocolDefault = "/ypoker/1.0.0"
 
 	// connection states
 	ConnectionStateActive   = "active"

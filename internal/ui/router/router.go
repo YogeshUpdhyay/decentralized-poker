@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"fyne.io/fyne/v2"
-	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
+	models "github.com/YogeshUpdhyay/ypoker/internal/ui/commons"
 	log "github.com/sirupsen/logrus"
 )
 

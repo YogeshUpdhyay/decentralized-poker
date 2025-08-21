@@ -7,10 +7,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/forms"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,28 +41,29 @@ func (l *Login) Content(ctx context.Context) fyne.CanvasObject {
 	logo.SetMinSize(fyne.NewSize(100, 100))
 
 	// form elements and data bindings
+	loginForm := forms.NewLoginForm()
+
 	username := widget.NewEntry()
 	username.SetPlaceHolder("Username")
-	userNameString := binding.NewString()
-	username.Bind(userNameString)
+	username.Bind(loginForm.Username)
 
 	password := widget.NewPasswordEntry()
 	password.SetPlaceHolder("Password")
-	passwordString := binding.NewString()
-	password.Bind(passwordString)
+	password.Bind(loginForm.Password)
 
 	submit := widget.NewButton("Submit", func() {
-		userNameValue, err := userNameString.Get()
+		// getting data from the form
+		_, password, err := loginForm.GetData()
 		if err != nil {
-			log.Errorf("failed to get username: %v", err)
+			log.Errorf("error getting login data: %v", err)
 			return
 		}
-		passwordValue, err := passwordString.Get()
-		if err != nil {
-			log.Errorf("failed to get password: %v", err)
-			return
-		}
-		log.Infof("login button clicked %s %s", userNameValue, passwordValue)
+
+		// starting the server
+		appConfig := utils.GetAppConfig()
+		serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
+		server := p2p.NewServer(serverConfig)
+		go server.Start(password)
 
 		router.GetRouter().Navigate(ctx, constants.ChatRoute)
 	})

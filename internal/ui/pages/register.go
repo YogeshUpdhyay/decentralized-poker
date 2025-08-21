@@ -3,14 +3,15 @@ package pages
 import (
 	"context"
 	"image/color"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/forms"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
@@ -41,56 +42,38 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 	logo.SetMinSize(fyne.NewSize(100, 100))
 
 	// form elements and data bindings
+	registerForm := forms.NewRegisterForm()
+
 	username := widget.NewEntry()
 	username.SetPlaceHolder("Username")
-	userNameString := binding.NewString()
-	username.Bind(userNameString)
+	username.Bind(registerForm.Username)
 
 	password := widget.NewPasswordEntry()
 	password.SetPlaceHolder("Password")
-	passwordString := binding.NewString()
-	password.Bind(passwordString)
+	password.Bind(registerForm.Password)
 
 	confirmPassword := widget.NewPasswordEntry()
 	confirmPassword.SetPlaceHolder("Confirm Password")
-	confirmPasswordString := binding.NewString()
-	confirmPassword.Bind(confirmPasswordString)
+	confirmPassword.Bind(registerForm.ConfirmPassword)
 
 	submit := widget.NewButton("Submit", func() {
-		_, err := userNameString.Get()
+		// validate and get data from the form
+		_, password, _, err := registerForm.GetData()
 		if err != nil {
-			log.Errorf("failed to get username: %v", err)
+			log.Errorf("form validation failed: %v", err)
 			return
 		}
 
-		passwordValue, err := passwordString.Get()
-		if err != nil {
-			log.Errorf("failed to get password: %v", err)
-			return
-		}
-
-		confirmPasswordValue, err := confirmPasswordString.Get()
-		if err != nil {
-			log.Errorf("failed to get confirm password: %v", err)
-			return
-		}
-
-		if passwordValue != confirmPasswordValue {
-			log.Errorf("password and confirm password do not match")
-			return
-		}
-
-		appConfig, err := utils.GetAppConfig()
-		if err != nil {
-			log.Errorf("failed to get application config: %v", err)
-			return
-		}
-
+		// starting the server
+		appConfig := utils.GetAppConfig()
 		serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
 		server := p2p.NewServer(serverConfig)
-		server.InitializeIdentityFlow(ctx, passwordValue)
-		go server.Start()
-		log.Infof("serever started with addresses: %+v", server.GetMyFullAddr())
+		server.InitializeIdentityFlow(ctx, password)
+		go server.Start(password)
+
+		// wait for server to start
+		time.Sleep(2 * time.Second)
+		log.WithContext(ctx).Infof("serever started with addresses: %+v", server.GetMyFullAddr())
 
 		router.GetRouter().Navigate(ctx, constants.ChatRoute)
 	})

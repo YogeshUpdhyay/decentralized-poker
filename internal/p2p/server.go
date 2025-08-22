@@ -54,11 +54,17 @@ type Handshake struct {
 	Version string
 }
 
+var server *Server
+
+func GetServer() *Server {
+	return server
+}
+
 func NewServer(cfg ServerConfig) *Server {
 	// apply default values if not set
 	cfg.ApplyDefaults()
 
-	server := &Server{
+	server = &Server{
 		ServerConfig: cfg,
 		handler:      &DefaultHandler{},
 		peers:        make(map[peer.ID]*Peer),

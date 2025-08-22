@@ -21,7 +21,7 @@ func NewRouter(ctx context.Context, rootCanvas fyne.Canvas) *Router {
 		pages:      map[string]models.Page{},
 		rootCanvas: rootCanvas,
 	}
-	log.Info("Router initialized")
+	log.Info("router initialized")
 	return router
 }
 

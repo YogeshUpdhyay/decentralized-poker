@@ -21,6 +21,7 @@ type DefaultUI struct{}
 // initialize the UI and start the application
 func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) error {
 	app := fyneApp.New()
+
 	app.Settings().SetTheme(theme.DarkTheme())
 	window := app.NewWindow("yoker")
 	window.Resize(fyne.NewSize(constants.WindowWidth, constants.WindowHeight))
@@ -35,7 +36,7 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	router.Register(ctx, constants.RegisterRoute, &pages.Register{})
 	router.Navigate(ctx, constants.RegisterRoute)
 	if isIdentityInitialized {
-		router.Navigate(ctx, constants.LoginRoute)
+		router.Navigate(ctx, constants.ChatRoute)
 	}
 
 	// content is set by the router

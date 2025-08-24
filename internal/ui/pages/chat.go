@@ -3,15 +3,18 @@ package pages
 import (
 	"context"
 	"image/color"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/components"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,7 +90,35 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 	textBox.StrokeWidth = 2
 	textBox.CornerRadius = 16
 
-	return container.NewVBox(
+	// messages model
+	// msgs := binding.NewStringList()
+	messages := binding.NewUntypedList()
+
+	// messages view
+	list := widget.NewListWithData(
+		messages,
+		func() fyne.CanvasObject {
+			return components.NewChatMessage()
+		},
+		func(di binding.DataItem, o fyne.CanvasObject) {
+			o.(*components.ChatMessage).SetData(di.(binding.Untyped))
+		},
+	)
+
+	entry := widget.NewEntry()
+	entry.SetPlaceHolder("Type a message…")
+	send := widget.NewButtonWithIcon("", theme.MailSendIcon(), func() {
+		text := strings.TrimSpace(entry.Text)
+		if text == "" {
+			return
+		}
+		_ = messages.Append(models.GetSelfMessage(text))
+		entry.SetText("")
+		entry.FocusLost()
+	})
+	entry.OnSubmitted = func(s string) { send.OnTapped() }
+
+	return container.NewBorder(
 		container.NewPadded(
 			container.NewBorder(
 				nil, canvas.NewLine(color.White), nil, nil,
@@ -102,15 +133,15 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 				),
 			),
 		),
-		layout.NewSpacer(),
 		container.NewPadded(
 			container.NewBorder(
-				canvas.NewLine(color.White), nil, nil, nil,
-				container.NewHBox(
-					container.NewPadded(layout.NewSpacer(), widget.NewEntry()),
-					container.NewPadded(widget.NewButtonWithIcon("", theme.NavigateNextIcon(), func() {})),
-				),
+				canvas.NewLine(color.White),
+				nil, nil,
+				send,
+				entry,
 			),
 		),
+		nil, nil,
+		list,
 	)
 }

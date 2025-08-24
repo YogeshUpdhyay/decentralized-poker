@@ -19,4 +19,11 @@ const (
 	// connection states
 	ConnectionStateActive   = "active"
 	ConnectionStateInactive = "inactive"
+
+	// message statuses
+	ToBeSent  = "toBeSent"
+	Sending   = "sending"
+	Sent      = "sent"
+	Delivered = "delivered"
+	Read      = "read"
 )

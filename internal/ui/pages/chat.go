@@ -93,26 +93,21 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 	// messages model
 	// msgs := binding.NewStringList()
 	messages := binding.NewUntypedList()
+	list := container.NewVBox()
 
-	// messages view
-	list := widget.NewListWithData(
-		messages,
-		func() fyne.CanvasObject {
-			return components.NewChatMessage()
-		},
-		func(di binding.DataItem, o fyne.CanvasObject) {
-			o.(*components.ChatMessage).SetData(di.(binding.Untyped))
-		},
-	)
-
-	entry := widget.NewEntry()
+	entry := widget.NewMultiLineEntry()
 	entry.SetPlaceHolder("Type a message…")
 	send := widget.NewButtonWithIcon("", theme.MailSendIcon(), func() {
 		text := strings.TrimSpace(entry.Text)
 		if text == "" {
 			return
 		}
-		_ = messages.Append(models.GetSelfMessage(text))
+
+		newMessage := models.GetSelfMessage(text)
+		_ = messages.Append(newMessage)
+		chatMessage := components.NewChatMessage(newMessage)
+		list.Add(chatMessage)
+
 		entry.SetText("")
 		entry.FocusLost()
 	})

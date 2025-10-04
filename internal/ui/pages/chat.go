@@ -60,26 +60,30 @@ func getSideNav(ctx context.Context) fyne.CanvasObject {
 	chatThreads := container.NewVBox(components.NewChatThread(
 		"MSo17",
 		"https://avatar.iran.liara.run/public/boy?username=Ash",
-		"Hi, there what's the situation on the op?",
+		"Hi, there what's the situation on the op iwenrigufqwe vqiwerbfgibi?",
 	))
 
 	return container.NewBorder(
-		container.NewPadded(
-			container.NewHBox(
-				logo,
-				layout.NewSpacer(),
-				accountInfoIcon,
+		nil, nil, nil, canvas.NewLine(color.White),
+		container.NewBorder(
+			container.NewPadded(
+				container.NewHBox(
+					logo,
+					layout.NewSpacer(),
+					accountInfoIcon,
+				),
 			),
-		), container.NewPadded(
-			widget.NewButtonWithIcon(
-				"New Chat",
-				theme.ContentAddIcon(),
-				func() {
-					log.WithContext(ctx).Info("New chat button tapped")
-				},
-			),
-		), nil, canvas.NewLine(color.White),
-		chatThreads,
+			container.NewPadded(
+				widget.NewButtonWithIcon(
+					"New Chat",
+					theme.ContentAddIcon(),
+					func() {
+						log.WithContext(ctx).Info("New chat button tapped")
+					},
+				),
+			), nil, nil, chatThreads,
+		),
+		// chatThreads,
 	)
 }
 
@@ -110,10 +114,10 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 		ctx = utils.UpdateParentInContext(ctx, list)
 
 		// testing  others message
-		// newPeerMessage := models.GetPeerMessage("MSo17", text)
-		// _ = messages.Append(newPeerMessage)
-		// chatMessagePeer := components.NewChatMessage(ctx, newPeerMessage)
-		// list.Add(chatMessagePeer)
+		newPeerMessage := models.GetPeerMessage("MSo17", text)
+		_ = messages.Append(newPeerMessage)
+		chatMessagePeer := components.NewChatMessage(ctx, newPeerMessage)
+		list.Add(chatMessagePeer)
 
 		newMessage := models.GetSelfMessage(text)
 		_ = messages.Append(newMessage)

@@ -44,11 +44,12 @@ func (c *ChatMessage) CreateRenderer() fyne.WidgetRenderer {
 
 	messageWidth := canvas.NewRectangle(messageBoxColor(c.message.IsSelf))
 	messageWidth.SetMinSize(fyne.NewSize(utils.GetParentSize(c.parentContext).Width*0.6, 40))
+	messageWidth.CornerRadius = 10
 
 	message := container.New(
 		layout.NewStackLayout(),
 		messageWidth,
-		textMessage,
+		container.NewPadded(textMessage),
 	)
 
 	messageBox.Add(message)

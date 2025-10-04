@@ -29,33 +29,34 @@ func NewChatThread(username, avatarURL, lastMessage string) fyne.CanvasObject {
 }
 
 func (c *ChatThread) CreateRenderer() fyne.WidgetRenderer {
-	// Username label
-	avatarUsername := widget.NewLabel(c.Username)
-	avatarUsername.TextStyle.Bold = true
-	avatarUsername.Truncation = fyne.TextTruncateEllipsis
-	// avatarUsername.SizeName = theme.SizeNameText
-
-	// Last message label with truncation
-	lastMessage := widget.NewLabel(c.LastMessage)
-	lastMessage.Truncation = fyne.TextTruncateEllipsis // nicer than Clip
-
-	spacer := canvas.NewRectangle(color.Transparent)
-	spacer.SetMinSize(fyne.NewSize(100, 0))
-
-	// Layout: avatar fixed + right side expands
-	// right := container.NewBorder(nil, nil, nil, nil)
+	// truncate last message if too long
+	truncatedMessage := c.truncateWithEllipsis(c.LastMessage, 30)
+	subTitleText := canvas.NewText(truncatedMessage, color.Gray{Y: 200})
 
 	content := container.NewBorder(
 		nil, canvas.NewLine(color.White), nil, nil,
 		container.NewHBox(
 			container.NewPadded(NewAvatar(c.AvatarURL)),
-			container.NewPadded(container.NewVBox(
-				spacer, // spacer
-				avatarUsername,
-				lastMessage,
-			)), // this expands automatically
+			container.NewPadded(
+				container.NewCenter(
+					container.NewVBox(
+						canvas.NewText(c.Username, color.White),
+						subTitleText,
+					),
+				),
+			),
 		),
 	)
 
 	return widget.NewSimpleRenderer(content)
+}
+
+func (c *ChatThread) truncateWithEllipsis(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	if maxLen <= 3 {
+		return s[:maxLen]
+	}
+	return s[:maxLen-3] + "..."
 }

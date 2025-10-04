@@ -15,6 +15,7 @@ import (
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/components"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -56,27 +57,29 @@ func getSideNav(ctx context.Context) fyne.CanvasObject {
 		// }
 	})
 
+	chatThreads := container.NewVBox(components.NewChatThread(
+		"MSo17",
+		"https://avatar.iran.liara.run/public/boy?username=Ash",
+		"Hi, there what's the situation on the op?",
+	))
+
 	return container.NewBorder(
-		nil, nil, nil, canvas.NewLine(color.White),
-		container.NewVBox(
-			container.NewPadded(
-				container.NewHBox(
-					logo,
-					layout.NewSpacer(),
-					accountInfoIcon,
-				),
+		container.NewPadded(
+			container.NewHBox(
+				logo,
+				layout.NewSpacer(),
+				accountInfoIcon,
 			),
-			layout.NewSpacer(),
-			container.NewPadded(
-				widget.NewButtonWithIcon(
-					"New Chat",
-					theme.ContentAddIcon(),
-					func() {
-						log.WithContext(ctx).Info("New chat button tapped")
-					},
-				),
+		), container.NewPadded(
+			widget.NewButtonWithIcon(
+				"New Chat",
+				theme.ContentAddIcon(),
+				func() {
+					log.WithContext(ctx).Info("New chat button tapped")
+				},
 			),
-		),
+		), nil, canvas.NewLine(color.White),
+		chatThreads,
 	)
 }
 
@@ -85,17 +88,18 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 	avatarUsername.TextSize = 16
 	avatarUsername.TextStyle.Bold = true
 
+	// Create the username text for the chat header
 	textBox := canvas.NewRectangle(color.Transparent)
 	textBox.StrokeColor = color.White
 	textBox.StrokeWidth = 2
 	textBox.CornerRadius = 16
 
-	// messages model
-	// msgs := binding.NewStringList()
+	// Create the messages model (data source for the chat list)
 	messages := binding.NewUntypedList()
 	list := container.NewVBox()
 
-	entry := widget.NewMultiLineEntry()
+	// Create the entry box for typing new messages
+	entry := widget.NewEntry()
 	entry.SetPlaceHolder("Type a message…")
 	send := widget.NewButtonWithIcon("", theme.MailSendIcon(), func() {
 		text := strings.TrimSpace(entry.Text)
@@ -103,9 +107,17 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 			return
 		}
 
+		ctx = utils.UpdateParentInContext(ctx, list)
+
+		// testing  others message
+		// newPeerMessage := models.GetPeerMessage("MSo17", text)
+		// _ = messages.Append(newPeerMessage)
+		// chatMessagePeer := components.NewChatMessage(ctx, newPeerMessage)
+		// list.Add(chatMessagePeer)
+
 		newMessage := models.GetSelfMessage(text)
 		_ = messages.Append(newMessage)
-		chatMessage := components.NewChatMessage(newMessage)
+		chatMessage := components.NewChatMessage(ctx, newMessage)
 		list.Add(chatMessage)
 
 		entry.SetText("")
@@ -113,6 +125,10 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 	})
 	entry.OnSubmitted = func(s string) { send.OnTapped() }
 
+	// Layout the chat UI using a border container
+	// Top: chat header with avatar and username
+	// Bottom: message entry and send button
+	// Center: chat messages list
 	return container.NewBorder(
 		container.NewPadded(
 			container.NewBorder(

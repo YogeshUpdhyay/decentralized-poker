@@ -24,3 +24,13 @@ func GetSelfMessage(text string) *Message {
 		Status:   constants.ToBeSent,
 	}
 }
+
+func GetPeerMessage(from, text string) *Message {
+	return &Message{
+		From:     from,
+		Message:  text,
+		IsSelf:   false,
+		CreateTs: time.Now(),
+		Status:   constants.Received,
+	}
+}

@@ -30,6 +30,7 @@ func (a *Avatar) CreateRenderer() fyne.WidgetRenderer {
 	}
 	image := canvas.NewImageFromResource(imageResource)
 	image.SetMinSize(fyne.NewSize(50, 50))
+	image.FillMode = canvas.ImageFillContain
 
 	backgroundCircle := canvas.NewCircle(color.White)
 	backgroundCircle.StrokeColor = color.Gray{Y: 0x99}

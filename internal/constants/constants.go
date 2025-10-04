@@ -26,4 +26,5 @@ const (
 	Sent      = "sent"
 	Delivered = "delivered"
 	Read      = "read"
+	Received  = "received"
 )

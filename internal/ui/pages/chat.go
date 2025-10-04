@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/components"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
@@ -24,6 +25,8 @@ type Chat struct {
 
 func (c *Chat) OnShow(_ context.Context) {
 	// Logic to execute when the chat page is shown
+	// get the chat data stored locally or in the distributed storage over the peer-to-peer network
+	log.Info("Chat page is now visible")
 }
 
 func (c *Chat) OnHide(_ context.Context) {
@@ -33,7 +36,7 @@ func (c *Chat) OnHide(_ context.Context) {
 func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
 	chat := container.NewHSplit(
 		getSideNav(ctx),
-		getChatLayout(ctx),
+		getChatLayout(ctx, nil),
 	)
 	chat.SetOffset(0.25)
 
@@ -49,19 +52,21 @@ func getSideNav(ctx context.Context) fyne.CanvasObject {
 	// account info button
 	accountInfoIcon := components.NewIconButton(theme.AccountIcon(), func() {
 		log.WithContext(ctx).Info("account info button tapped")
-		// server := p2p.GetServer()
-		// myAddresses := server.GetMyFullAddr()
-		// _, err := utils.GetAddressQRS(myAddresses)
-		// if err != nil {
-		// 	log.WithContext(ctx).Infof("error creating address qrs %s", err.Error())
-		// }
+
+		// fetch address and generate qr code
+		server := p2p.GetServer()
+		myAddresses := server.GetMyFullAddr()
+		qrPath, err := utils.GetAddressQRS(myAddresses)
+		if err != nil {
+			log.WithContext(ctx).Infof("error creating address qrs %s", err.Error())
+		}
+
+		// display a share link or qr code in the dailog
+		getConnectionPopUp(ctx, qrPath, myAddresses)
 	})
 
-	chatThreads := container.NewVBox(components.NewChatThread(
-		"MSo17",
-		"https://avatar.iran.liara.run/public/boy?username=Ash",
-		"Hi, there what's the situation on the op iwenrigufqwe vqiwerbfgibi?",
-	))
+	// chat threads list
+	chatThreads := container.NewVBox()
 
 	return container.NewBorder(
 		nil, nil, nil, canvas.NewLine(color.White),
@@ -87,8 +92,15 @@ func getSideNav(ctx context.Context) fyne.CanvasObject {
 	)
 }
 
-func getChatLayout(ctx context.Context) fyne.CanvasObject {
-	avatarUsername := canvas.NewText("MSo17", color.White)
+func getChatLayout(ctx context.Context, peerData *models.PeerData) fyne.CanvasObject {
+	// if no peer data is provided, show a placeholder
+	if peerData == nil {
+		return container.NewCenter(
+			widget.NewLabel("Select a chat to start messaging"),
+		)
+	}
+
+	avatarUsername := canvas.NewText(peerData.Username, color.White)
 	avatarUsername.TextSize = 16
 	avatarUsername.TextStyle.Bold = true
 
@@ -114,10 +126,10 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 		ctx = utils.UpdateParentInContext(ctx, list)
 
 		// testing  others message
-		newPeerMessage := models.GetPeerMessage("MSo17", text)
-		_ = messages.Append(newPeerMessage)
-		chatMessagePeer := components.NewChatMessage(ctx, newPeerMessage)
-		list.Add(chatMessagePeer)
+		// newPeerMessage := models.GetPeerMessage("MSo17", text)
+		// _ = messages.Append(newPeerMessage)
+		// chatMessagePeer := components.NewChatMessage(ctx, newPeerMessage)
+		// list.Add(chatMessagePeer)
 
 		newMessage := models.GetSelfMessage(text)
 		_ = messages.Append(newMessage)
@@ -138,11 +150,11 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 			container.NewBorder(
 				nil, canvas.NewLine(color.White), nil, nil,
 				container.NewHBox(
-					container.NewPadded(components.NewAvatar("https://avatar.iran.liara.run/public/boy?username=Ash")),
+					container.NewPadded(components.NewAvatar(peerData.Avatar)),
 					container.NewPadded(
 						container.NewVBox(
 							avatarUsername,
-							canvas.NewText("online", color.White),
+							canvas.NewText("online", color.White), // get status func to be implemented
 						),
 					),
 				),
@@ -159,4 +171,24 @@ func getChatLayout(ctx context.Context) fyne.CanvasObject {
 		nil, nil,
 		list,
 	)
+}
+
+func getConnectionPopUp(ctx context.Context, qrPath string, myAddresses []string) {
+	log.WithContext(ctx).Info("generating connection pop up")
+
+	content := container.NewVBox(
+		widget.NewLabel("Your Node Addresses"),
+		widget.NewLabel(strings.Join(myAddresses, "\n")),
+		canvas.NewImageFromFile(qrPath),
+	)
+
+	// Create the pop-up
+	popUp := widget.NewModalPopUp(
+		content,
+		fyne.CurrentApp().Driver().AllWindows()[0].Canvas(),
+	)
+
+	content.Add(widget.NewButton("Close", func() { popUp.Hide() }))
+
+	popUp.Show()
 }

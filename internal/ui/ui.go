@@ -8,8 +8,10 @@ import (
 	"fyne.io/fyne/v2/theme"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/pages"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 )
 
 type UI interface {
@@ -38,6 +40,12 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	if isIdentityInitialized {
 		router.Navigate(ctx, constants.ChatRoute)
 	}
+
+	// starting the server testing block
+	appConfig := utils.GetAppConfig()
+	serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
+	server := p2p.NewServer(serverConfig)
+	go server.Start("oggy@123")
 
 	// content is set by the router
 	window.ShowAndRun()

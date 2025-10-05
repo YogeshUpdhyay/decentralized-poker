@@ -8,8 +8,10 @@ import (
 )
 
 type Peer struct {
-	conn   libp2pnetwork.Stream
-	Status string
+	Username string
+	Avatar   string
+	conn     libp2pnetwork.Stream
+	Status   string
 }
 
 func (p *Peer) Send(b []byte) error {

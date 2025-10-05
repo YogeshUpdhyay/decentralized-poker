@@ -14,15 +14,16 @@ type ChatThread struct {
 	Username    string
 	AvatarURL   string
 	LastMessage string
-	OnTapped    func()
+	OnTapped    func(username, avatarUrl, peerID string)
 }
 
-func NewChatThread(username, avatarURL, lastMessage string) fyne.CanvasObject {
+func NewChatThread(username, avatarURL, lastMessage string, onTap func(username, avatarUrl, peerID string)) fyne.CanvasObject {
 	// Build and return a container with avatar, username, and last message
 	chatThread := &ChatThread{
 		Username:    username,
 		AvatarURL:   avatarURL,
 		LastMessage: lastMessage,
+		OnTapped:    onTap,
 	}
 	chatThread.ExtendBaseWidget(chatThread)
 	return chatThread
@@ -33,6 +34,8 @@ func (c *ChatThread) CreateRenderer() fyne.WidgetRenderer {
 	truncatedMessage := c.truncateWithEllipsis(c.LastMessage, 30)
 	subTitleText := canvas.NewText(truncatedMessage, color.Gray{Y: 200})
 
+	usernameText := canvas.NewText(c.Username, color.White)
+	usernameText.TextStyle = fyne.TextStyle{Bold: true}
 	content := container.NewBorder(
 		nil, canvas.NewLine(color.White), nil, nil,
 		container.NewHBox(
@@ -40,7 +43,7 @@ func (c *ChatThread) CreateRenderer() fyne.WidgetRenderer {
 			container.NewPadded(
 				container.NewCenter(
 					container.NewVBox(
-						canvas.NewText(c.Username, color.White),
+						usernameText,
 						subTitleText,
 					),
 				),
@@ -49,6 +52,12 @@ func (c *ChatThread) CreateRenderer() fyne.WidgetRenderer {
 	)
 
 	return widget.NewSimpleRenderer(content)
+}
+
+func (c *ChatThread) Tapped(_ *fyne.PointEvent) {
+	if c.OnTapped != nil {
+		c.OnTapped(c.Username, c.AvatarURL, "")
+	}
 }
 
 func (c *ChatThread) truncateWithEllipsis(s string, maxLen int) string {

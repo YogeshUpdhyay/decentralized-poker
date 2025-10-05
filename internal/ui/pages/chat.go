@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"fmt"
 	"image/color"
 	"strings"
 
@@ -21,12 +22,32 @@ import (
 )
 
 type Chat struct {
+	chatThreadsData binding.UntypedList
 }
 
 func (c *Chat) OnShow(_ context.Context) {
-	// Logic to execute when the chat page is shown
-	// get the chat data stored locally or in the distributed storage over the peer-to-peer network
-	log.Info("Chat page is now visible")
+	// fetch chat threads data from the server's peer list
+	c.chatThreadsData = binding.NewUntypedList()
+	for peerID, peer := range p2p.GetServer().GetPeers() {
+		peerData := models.PeerData{
+			PeerID:      peerID.ShortString(),
+			Username:    peer.Username,
+			Avatar:      peer.Avatar,
+			LastMessage: "No messages yet",
+		}
+		_ = c.chatThreadsData.Append(peerData)
+	}
+
+	// testing data
+	for i := 1; i <= 5; i++ {
+		peerData := models.PeerData{
+			PeerID:      fmt.Sprintf("peer-%d", i),
+			Username:    fmt.Sprintf("User %d", i),
+			Avatar:      "https://avatar.iran.liara.run/public/18",
+			LastMessage: "This is a sample last message",
+		}
+		_ = c.chatThreadsData.Append(peerData)
+	}
 }
 
 func (c *Chat) OnHide(_ context.Context) {
@@ -34,9 +55,12 @@ func (c *Chat) OnHide(_ context.Context) {
 }
 
 func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
+	openChatUsername := binding.NewString()
+	openChatAvatarUrl := binding.NewString()
+
 	chat := container.NewHSplit(
 		c.getSideNav(ctx),
-		c.getChatLayout(ctx, nil),
+		c.getChatLayout(ctx, openChatUsername, openChatAvatarUrl),
 	)
 	chat.SetOffset(0.25)
 
@@ -75,7 +99,12 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	)
 
 	// chat threads list
-	chatThreads := container.NewVBox()
+	chatThreadsList := components.NewChatThreadListWithData(
+		c.chatThreadsData,
+		func(peerID, username, avatarUrl string) {
+			log.WithContext(ctx).Infof("chat thread tapped: %s", peerID)
+		},
+	)
 
 	return container.NewBorder(
 		nil, nil, nil, canvas.NewLine(color.White),
@@ -89,23 +118,38 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 			),
 			container.NewPadded(
 				newChatButton,
-			), nil, nil, chatThreads,
+			), nil, nil, chatThreadsList,
 		),
-		// chatThreads,
 	)
 }
 
-func (c *Chat) getChatLayout(ctx context.Context, peerData *models.PeerData) fyne.CanvasObject {
+func (c *Chat) getChatLayout(ctx context.Context, username binding.String, avatarUrl binding.String) fyne.CanvasObject {
 	// if no peer data is provided, show a placeholder
-	if peerData == nil {
+	if username == nil {
 		return container.NewCenter(
 			widget.NewLabel("Select a chat to start messaging"),
 		)
 	}
 
-	avatarUsername := canvas.NewText(peerData.Username, color.White)
+	// username block with data binding
+	usernameText, _ := username.Get()
+	avatarUsername := canvas.NewText(usernameText, color.White)
 	avatarUsername.TextSize = 16
 	avatarUsername.TextStyle.Bold = true
+	username.AddListener(binding.NewDataListener(func() {
+		newUsername, _ := username.Get()
+		avatarUsername.Text = newUsername
+		avatarUsername.Refresh()
+	}))
+
+	// avatar block with data binding
+	avatarUrlText, _ := avatarUrl.Get()
+	avatar := components.NewAvatar(avatarUrlText)
+	avatarUrl.AddListener(binding.NewDataListener(func() {
+		newAvatarUrl, _ := avatarUrl.Get()
+		avatar.URL = newAvatarUrl
+		avatar.Refresh()
+	}))
 
 	// Create the username text for the chat header
 	textBox := canvas.NewRectangle(color.Transparent)
@@ -153,7 +197,7 @@ func (c *Chat) getChatLayout(ctx context.Context, peerData *models.PeerData) fyn
 			container.NewBorder(
 				nil, canvas.NewLine(color.White), nil, nil,
 				container.NewHBox(
-					container.NewPadded(components.NewAvatar(peerData.Avatar)),
+					container.NewPadded(avatar),
 					container.NewPadded(
 						container.NewVBox(
 							avatarUsername,

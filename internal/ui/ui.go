@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"time"
 
 	"fyne.io/fyne/v2"
 	fyneApp "fyne.io/fyne/v2/app"
@@ -32,6 +33,13 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	// get router
 	router := router.NewRouter(ctx, rootCanvas)
 
+	// starting the server testing block
+	appConfig := utils.GetAppConfig()
+	serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
+	server := p2p.NewServer(serverConfig)
+	go server.Start("oggy@123")
+	time.Sleep(2 * time.Second)
+
 	// registering pages to router
 	router.Register(ctx, constants.LoginRoute, &pages.Login{})
 	router.Register(ctx, constants.ChatRoute, &pages.Chat{})
@@ -40,12 +48,6 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	if isIdentityInitialized {
 		router.Navigate(ctx, constants.ChatRoute)
 	}
-
-	// starting the server testing block
-	appConfig := utils.GetAppConfig()
-	serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
-	server := p2p.NewServer(serverConfig)
-	go server.Start("oggy@123")
 
 	// content is set by the router
 	window.ShowAndRun()

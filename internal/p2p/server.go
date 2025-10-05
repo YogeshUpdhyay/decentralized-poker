@@ -1,11 +1,7 @@
 package p2p
 
 import (
-	"bytes"
 	"context"
-	"encoding/gob"
-	"errors"
-	"net"
 	"path/filepath"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
@@ -184,50 +180,6 @@ func (s *Server) InitializeIdentityFlow(ctx context.Context, password string) er
 	return nil
 }
 
-// ignored for libp2p
-func (s *Server) handshake(p *Peer) error {
-	// read the handshake message and validate
-	buff := make([]byte, 1024)
-	n, err := p.conn.Read(buff)
-	if err != nil {
-		log.Errorf("error reading hanshake data %s", err)
-		return err
-	}
-
-	hs := Handshake{}
-	if err := gob.NewDecoder(bytes.NewReader(buff[:n])).Decode(&hs); err != nil {
-		log.Errorf("error decoding the handshake data %s", err)
-		return err
-	}
-
-	if s.Version != hs.Version {
-		log.Error("version mismatch")
-		return errors.New("invalid peer: version mismatch")
-	}
-
-	log.WithField(constants.ServerName, s.ServerName).Info("handshake recieved and version matched.")
-	return nil
-}
-
-// ignored for libp2p
-func (s *Server) sendHandshake(conn net.Conn) error {
-	// preparing the handshake message
-	var buf bytes.Buffer
-
-	hs := Handshake{Version: s.Version}
-
-	if err := gob.NewEncoder(&buf).Encode(hs); err != nil {
-		log.Errorf("error creating the handshake message: %s", err)
-		return err
-	}
-
-	// Writing handshake to the connection
-	_, err := conn.Write(buf.Bytes())
-	if err != nil {
-		log.Errorf("error writing handshake to the connection %s", err)
-		return err
-	}
-
-	log.WithField(constants.ServerName, s.ServerName).Info("hanshake message sent successfully")
-	return nil
+func (s *Server) GetPeers() map[peer.ID]*Peer {
+	return s.peers
 }

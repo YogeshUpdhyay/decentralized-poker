@@ -1,8 +1,6 @@
 package components
 
 import (
-	"image/color"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -30,15 +28,9 @@ func (a *Avatar) CreateRenderer() fyne.WidgetRenderer {
 	}
 	image := canvas.NewImageFromResource(imageResource)
 	image.SetMinSize(fyne.NewSize(50, 50))
-	image.FillMode = canvas.ImageFillContain
-
-	backgroundCircle := canvas.NewCircle(color.White)
-	backgroundCircle.StrokeColor = color.Gray{Y: 0x99}
-	backgroundCircle.StrokeWidth = 2
 
 	return widget.NewSimpleRenderer(
 		container.NewStack(
-			backgroundCircle,
 			image,
 		),
 	)

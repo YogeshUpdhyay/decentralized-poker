@@ -95,7 +95,13 @@ func (s *Server) loop() {
 			log.Info("addPeer called")
 			// validating peer using handshake
 			peerId := conn.Conn().RemotePeer().String()
-			peer := Peer{conn: conn, Status: constants.ConnectionStateActive}
+			peer := Peer{
+				conn:     conn,
+				Status:   constants.ConnectionStateActive,
+				PeerID:   conn.Conn().RemotePeer().ShortString(),
+				Username: "Oliver",
+				Avatar:   "https://api.dicebear.com/9.x/adventurer/svg?seed=Oliver",
+			}
 
 			// below is not required for libp2p implementation
 			// if err := s.handshake(&peer); err != nil {
@@ -119,39 +125,45 @@ func (s *Server) loop() {
 	}
 }
 
-func (s *Server) Connect(remoteAddr string) error {
+func (s *Server) Connect(remoteAddr string) (*Peer, error) {
 	// 1. Parse the multiaddress
 	maddr, err := ma.NewMultiaddr(remoteAddr)
 	if err != nil {
 		log.Errorf("invalid multiaddress: %s", err)
-		return err
+		return nil, err
 	}
 
 	// 2. Extract peer info from multiaddr (contains ID + address)
 	peerInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 	if err != nil {
 		log.Errorf("invalid peer info from multiaddr: %s", err)
-		return err
+		return nil, err
 	}
 
 	// 3. Add peer to peerstore so we can dial it
 	if err := s.transport.host.Connect(context.Background(), *peerInfo); err != nil {
 		log.Errorf("error connecting to peer: %s", err)
-		return err
+		return nil, err
 	}
 
 	// 4. Open a stream to the peer using your protocol
 	stream, err := s.transport.host.NewStream(context.Background(), peerInfo.ID, "/ypoker/1.0.0")
 	if err != nil {
 		log.Errorf("error opening stream: %s", err)
-		return err
+		return nil, err
 	}
 
 	log.WithField(constants.ServerName, s.ServerName).Infof("connection request sucess %s at %s adding to peers", peerInfo.ID, remoteAddr)
 
 	s.addPeer <- stream
 
-	return nil
+	return &Peer{
+		conn:     stream,
+		Status:   constants.ConnectionStateActive,
+		PeerID:   stream.Conn().RemotePeer().ShortString(),
+		Username: "Oliver",
+		Avatar:   "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Nolan&radius=50",
+	}, nil
 }
 
 func (s *Server) GetMyFullAddr() []string {

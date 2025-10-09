@@ -3,7 +3,7 @@ package constants
 const (
 	Empty                       = ""
 	ApplicationDataDir          = ".yoker"
-	ApplicationIdentityFileName = "identity.key"
+	ApplicationIdentityFileName = "identitybeta.key"
 	ApplicationConfigFileName   = "config.yml"
 
 	Ping = "PING"
@@ -11,8 +11,8 @@ const (
 
 	ServerName = "serverName"
 
-	ServerNameDefault     = "yoker alpha"
-	ServerPortDefault     = "3000"
+	ServerNameDefault     = "yoker beta"
+	ServerPortDefault     = "5000"
 	ServerVersionDefault  = "yoker1.0.0"
 	StreamProtocolDefault = "/ypoker/1.0.0"
 

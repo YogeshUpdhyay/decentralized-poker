@@ -2,7 +2,6 @@ package pages
 
 import (
 	"context"
-	"fmt"
 	"image/color"
 	"strings"
 
@@ -22,7 +21,9 @@ import (
 )
 
 type Chat struct {
-	chatThreadsData binding.UntypedList
+	chatThreadsData   binding.UntypedList
+	openChatUsername  binding.String
+	openChatAvatarUrl binding.String
 }
 
 func (c *Chat) OnShow(_ context.Context) {
@@ -38,16 +39,8 @@ func (c *Chat) OnShow(_ context.Context) {
 		_ = c.chatThreadsData.Append(peerData)
 	}
 
-	// testing data
-	for i := 1; i <= 5; i++ {
-		peerData := models.PeerData{
-			PeerID:      fmt.Sprintf("peer-%d", i),
-			Username:    fmt.Sprintf("User %d", i),
-			Avatar:      "https://avatar.iran.liara.run/public/18",
-			LastMessage: "This is a sample last message",
-		}
-		_ = c.chatThreadsData.Append(peerData)
-	}
+	c.openChatUsername = binding.NewString()
+	c.openChatAvatarUrl = binding.NewString()
 }
 
 func (c *Chat) OnHide(_ context.Context) {
@@ -55,12 +48,9 @@ func (c *Chat) OnHide(_ context.Context) {
 }
 
 func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
-	openChatUsername := binding.NewString()
-	openChatAvatarUrl := binding.NewString()
-
 	chat := container.NewHSplit(
 		c.getSideNav(ctx),
-		c.getChatLayout(ctx, openChatUsername, openChatAvatarUrl),
+		c.getChatLayout(ctx),
 	)
 	chat.SetOffset(0.25)
 
@@ -103,6 +93,8 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 		c.chatThreadsData,
 		func(peerID, username, avatarUrl string) {
 			log.WithContext(ctx).Infof("chat thread tapped: %s", peerID)
+			c.openChatUsername.Set(username)
+			c.openChatAvatarUrl.Set(avatarUrl)
 		},
 	)
 
@@ -123,30 +115,30 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	)
 }
 
-func (c *Chat) getChatLayout(ctx context.Context, username binding.String, avatarUrl binding.String) fyne.CanvasObject {
+func (c *Chat) getChatLayout(ctx context.Context) fyne.CanvasObject {
 	// if no peer data is provided, show a placeholder
-	if username == nil {
+	usernameText, _ := c.openChatUsername.Get()
+	if usernameText == constants.Empty {
 		return container.NewCenter(
 			widget.NewLabel("Select a chat to start messaging"),
 		)
 	}
 
 	// username block with data binding
-	usernameText, _ := username.Get()
 	avatarUsername := canvas.NewText(usernameText, color.White)
 	avatarUsername.TextSize = 16
 	avatarUsername.TextStyle.Bold = true
-	username.AddListener(binding.NewDataListener(func() {
-		newUsername, _ := username.Get()
+	c.openChatUsername.AddListener(binding.NewDataListener(func() {
+		newUsername, _ := c.openChatUsername.Get()
 		avatarUsername.Text = newUsername
 		avatarUsername.Refresh()
 	}))
 
 	// avatar block with data binding
-	avatarUrlText, _ := avatarUrl.Get()
+	avatarUrlText, _ := c.openChatAvatarUrl.Get()
 	avatar := components.NewAvatar(avatarUrlText)
-	avatarUrl.AddListener(binding.NewDataListener(func() {
-		newAvatarUrl, _ := avatarUrl.Get()
+	c.openChatAvatarUrl.AddListener(binding.NewDataListener(func() {
+		newAvatarUrl, _ := c.openChatAvatarUrl.Get()
 		avatar.URL = newAvatarUrl
 		avatar.Refresh()
 	}))
@@ -329,12 +321,25 @@ func (c *Chat) connectToPeer(ctx context.Context, address string) error {
 		return nil
 	}
 
-	err := server.Connect(address)
+	peer, err := server.Connect(address)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("error connecting to peer %s", address)
 		return err
 	}
 
 	log.WithContext(ctx).Infof("successfully connected to peer %s", address)
+
+	err = c.chatThreadsData.Append(models.PeerData{
+		PeerID:      peer.PeerID,
+		Username:    peer.Username,
+		Avatar:      peer.Avatar,
+		LastMessage: "No messages yet",
+	})
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("error adding peer to the chat threads %s", address)
+		return err
+	}
+
+	log.WithContext(ctx).Infof("added peer to the binding %s", peer.PeerID)
 	return nil
 }

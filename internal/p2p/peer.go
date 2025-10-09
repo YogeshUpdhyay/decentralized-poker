@@ -8,6 +8,7 @@ import (
 )
 
 type Peer struct {
+	PeerID   string
 	Username string
 	Avatar   string
 	conn     libp2pnetwork.Stream

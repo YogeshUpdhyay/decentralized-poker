@@ -25,34 +25,6 @@ func NewChatThreadListWithData(data binding.UntypedList, onItemTapped func(peerI
 	return ctl
 }
 
-// func (c *ChatThreadsList) CreateRenderer() fyne.WidgetRenderer {
-// 	log.Info("creating chat threads list renderer")
-// 	content := container.NewVBox()
-// 	threads, err := c.ThreadsData.Get()
-// 	if err != nil {
-// 		log.Errorf("error getting chat threads data: %s", err.Error())
-// 		return widget.NewSimpleRenderer(content)
-// 	}
-
-// 	for _, t := range threads {
-// 		peerData, ok := t.(models.PeerData)
-// 		if !ok {
-// 			log.Error("error asserting peer data")
-// 			continue
-// 		}
-
-// 		content.Add(NewChatThread(
-// 			peerData.Username,
-// 			peerData.Avatar,
-// 			peerData.LastMessage,
-// 			c.OnItemTapped,
-// 		))
-// 	}
-
-// 	chatThreadListRenderer := widget.NewSimpleRenderer(content)
-// 	return chatThreadListRenderer
-// }
-
 type chatThreadsListRenderer struct {
 	list    *ChatThreadsList
 	content *fyne.Container

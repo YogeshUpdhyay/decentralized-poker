@@ -48,11 +48,30 @@ func (c *Chat) OnHide(_ context.Context) {
 }
 
 func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
+	// defining the main chat layout
+	secondContent := c.getEmptyChatPlaceholder()
+	if username, _ := c.openChatUsername.Get(); username != constants.Empty {
+		avatarUrl, _ := c.openChatAvatarUrl.Get()
+		secondContent = c.getChatLayout(ctx, username, avatarUrl)
+	}
+
 	chat := container.NewHSplit(
 		c.getSideNav(ctx),
-		c.getChatLayout(ctx),
+		secondContent,
 	)
 	chat.SetOffset(0.25)
+
+	c.openChatUsername.AddListener(binding.NewDataListener(func() {
+		log.WithContext(ctx).Info("open chat username changed, refreshing the layout")
+		username, _ := c.openChatUsername.Get()
+		if username == constants.Empty {
+			log.WithContext(ctx).Info("no chat selected, showing empty placeholder")
+			return
+		}
+		avatarUrl, _ := c.openChatAvatarUrl.Get()
+		chat.Trailing = c.getChatLayout(ctx, username, avatarUrl)
+		chat.Refresh()
+	}))
 
 	return chat
 }
@@ -92,9 +111,18 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	chatThreadsList := components.NewChatThreadListWithData(
 		c.chatThreadsData,
 		func(peerID, username, avatarUrl string) {
-			log.WithContext(ctx).Infof("chat thread tapped: %s", peerID)
-			c.openChatUsername.Set(username)
-			c.openChatAvatarUrl.Set(avatarUrl)
+			log.WithContext(ctx).Infof("chat thread tapped: %s, %s, %s", peerID, username, avatarUrl)
+
+			err := c.openChatAvatarUrl.Set(avatarUrl)
+			if err != nil {
+				log.WithContext(ctx).Infof("error setting open chat avatar url %s", err.Error())
+			}
+
+			err = c.openChatUsername.Set(username)
+			if err != nil {
+				log.WithContext(ctx).Infof("error setting open chat username %s", err.Error())
+			}
+
 		},
 	)
 
@@ -115,33 +143,20 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	)
 }
 
-func (c *Chat) getChatLayout(ctx context.Context) fyne.CanvasObject {
-	// if no peer data is provided, show a placeholder
-	usernameText, _ := c.openChatUsername.Get()
-	if usernameText == constants.Empty {
-		return container.NewCenter(
-			widget.NewLabel("Select a chat to start messaging"),
-		)
-	}
+func (c *Chat) getEmptyChatPlaceholder() fyne.CanvasObject {
+	return container.NewCenter(
+		widget.NewLabel("Select a chat to start messaging"),
+	)
+}
 
+func (c *Chat) getChatLayout(ctx context.Context, username, avatarUrl string) fyne.CanvasObject {
 	// username block with data binding
-	avatarUsername := canvas.NewText(usernameText, color.White)
+	avatarUsername := canvas.NewText(username, color.White)
 	avatarUsername.TextSize = 16
 	avatarUsername.TextStyle.Bold = true
-	c.openChatUsername.AddListener(binding.NewDataListener(func() {
-		newUsername, _ := c.openChatUsername.Get()
-		avatarUsername.Text = newUsername
-		avatarUsername.Refresh()
-	}))
 
 	// avatar block with data binding
-	avatarUrlText, _ := c.openChatAvatarUrl.Get()
-	avatar := components.NewAvatar(avatarUrlText)
-	c.openChatAvatarUrl.AddListener(binding.NewDataListener(func() {
-		newAvatarUrl, _ := c.openChatAvatarUrl.Get()
-		avatar.URL = newAvatarUrl
-		avatar.Refresh()
-	}))
+	avatar := components.NewAvatar(avatarUrl)
 
 	// Create the username text for the chat header
 	textBox := canvas.NewRectangle(color.Transparent)
@@ -174,6 +189,17 @@ func (c *Chat) getChatLayout(ctx context.Context) fyne.CanvasObject {
 		_ = messages.Append(newMessage)
 		chatMessage := components.NewChatMessage(ctx, newMessage)
 		list.Add(chatMessage)
+
+		// sending message to the peer
+		peer := p2p.GetServer().GetPeerByUsername(username)
+		if peer != nil {
+			err := peer.Send([]byte(text))
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("error sending message to peer %s", username)
+			} else {
+				log.WithContext(ctx).Infof("message sent to peer %s", username)
+			}
+		}
 
 		entry.SetText("")
 		entry.FocusLost()

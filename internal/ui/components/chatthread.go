@@ -56,7 +56,7 @@ func (c *ChatThread) CreateRenderer() fyne.WidgetRenderer {
 
 func (c *ChatThread) Tapped(_ *fyne.PointEvent) {
 	if c.OnTapped != nil {
-		c.OnTapped(c.Username, c.AvatarURL, "")
+		c.OnTapped("", c.Username, c.AvatarURL)
 	}
 }
 

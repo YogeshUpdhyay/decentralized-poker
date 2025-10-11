@@ -99,8 +99,8 @@ func (s *Server) loop() {
 				conn:     conn,
 				Status:   constants.ConnectionStateActive,
 				PeerID:   conn.Conn().RemotePeer().ShortString(),
-				Username: "Oliver",
-				Avatar:   "https://api.dicebear.com/9.x/adventurer/svg?seed=Oliver",
+				Username: conn.Conn().RemotePeer().ShortString(),
+				Avatar:   "https://api.dicebear.com/9.x/adventurer/svg?seed=Oliver&radius=50",
 			}
 
 			// below is not required for libp2p implementation
@@ -161,7 +161,7 @@ func (s *Server) Connect(remoteAddr string) (*Peer, error) {
 		conn:     stream,
 		Status:   constants.ConnectionStateActive,
 		PeerID:   stream.Conn().RemotePeer().ShortString(),
-		Username: "Oliver",
+		Username: stream.Conn().RemotePeer().ShortString(),
 		Avatar:   "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Nolan&radius=50",
 	}, nil
 }
@@ -194,4 +194,13 @@ func (s *Server) InitializeIdentityFlow(ctx context.Context, password string) er
 
 func (s *Server) GetPeers() map[peer.ID]*Peer {
 	return s.peers
+}
+
+func (s *Server) GetPeerByUsername(username string) *Peer {
+	for _, p := range s.peers {
+		if p.Username == username {
+			return p
+		}
+	}
+	return nil
 }

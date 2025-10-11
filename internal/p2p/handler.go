@@ -1,8 +1,9 @@
 package p2p
 
 import (
-	"fmt"
 	"io"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Handler interface {
@@ -16,6 +17,6 @@ func (h *DefaultHandler) HandleMessage(msg *Message) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("handling message from %s: %s", msg.From, string(b))
+	log.Infof("handling message from %s: %s", msg.From, string(b))
 	return nil
 }

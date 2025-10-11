@@ -26,7 +26,7 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	app := fyneApp.New()
 
 	app.Settings().SetTheme(theme.DarkTheme())
-	window := app.NewWindow("yoker beta")
+	window := app.NewWindow("yoker gamma")
 	window.Resize(fyne.NewSize(constants.WindowWidth, constants.WindowHeight))
 	rootCanvas := window.Canvas()
 

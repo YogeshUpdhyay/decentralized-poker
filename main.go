@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/database"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ func main() {
 	// initialize application
 	initializeApp(ctx)
 	uiImpl := ui.DefaultUI{}
+	defer database.Get().Close()
 
 	if !identityFileExists() {
 		// writing default config file
@@ -42,4 +44,10 @@ func identityFileExists() bool {
 
 func initializeApp(_ context.Context) {
 	log.SetFormatter(&log.JSONFormatter{})
+	err := database.InitDatabase(database.DatabaseConfig{Path: constants.DefaultDatabasePath})
+	if err != nil {
+		log.WithError(err).Fatal("failed to initialize the database")
+	}
+	database.Get().BootstrapTables()
+	log.Info("database initialized successfully")
 }

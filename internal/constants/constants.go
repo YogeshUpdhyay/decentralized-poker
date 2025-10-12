@@ -3,8 +3,10 @@ package constants
 const (
 	Empty                       = ""
 	ApplicationDataDir          = ".yoker"
-	ApplicationIdentityFileName = "identitygamma.key"
+	ApplicationIdentityFileName = "identity.key"
 	ApplicationConfigFileName   = "config.yml"
+	ApplicationDBFilleName      = "yoker.db"
+	DefaultDatabasePath         = ApplicationDataDir + "/" + ApplicationDBFilleName
 
 	Ping = "PING"
 	Pong = "PONG"
@@ -19,6 +21,7 @@ const (
 	// connection states
 	ConnectionStateActive   = "active"
 	ConnectionStateInactive = "inactive"
+	ConnectionStatePending  = "pending"
 
 	// message statuses
 	ToBeSent  = "toBeSent"

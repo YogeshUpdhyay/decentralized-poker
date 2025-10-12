@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"bytes"
+	"encoding/json"
 
 	libp2pnetwork "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -44,4 +45,19 @@ func (p *Peer) ReadLoop(msgCh chan *Message, delPeer chan peer.ID) {
 	// close connection and mark peer as deleted in the list
 	p.conn.Close()
 	delPeer <- p.conn.Conn().RemotePeer()
+}
+
+func (p *Peer) ReadHandshakeMessage() (*HandShake, error) {
+	buff := make([]byte, 4096)
+	n, err := p.conn.Read(buff)
+	if err != nil {
+		return nil, err
+	}
+
+	var hs HandShake
+	err = json.Unmarshal(buff[:n], &hs)
+	if err != nil {
+		return nil, err
+	}
+	return &hs, nil
 }

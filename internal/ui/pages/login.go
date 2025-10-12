@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/database"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/forms"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
@@ -53,9 +54,23 @@ func (l *Login) Content(ctx context.Context) fyne.CanvasObject {
 
 	submit := widget.NewButton("Submit", func() {
 		// getting data from the form
-		_, password, err := loginForm.GetData()
+		username, password, err := loginForm.GetData()
 		if err != nil {
 			log.Errorf("error getting login data: %v", err)
+			return
+		}
+
+		// fetching user from the database
+		userMetadata := database.UserMetadata{Username: username}
+		err = userMetadata.GetByID()
+		if err != nil {
+			log.Errorf("error fetching user from the database: %v", err)
+			return
+		}
+
+		if userMetadata.Username == constants.Empty || userMetadata.Username != username {
+			log.Errorf("user not found")
+			// add how ui will show this error
 			return
 		}
 

@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
@@ -13,12 +14,13 @@ import (
 
 type Server struct {
 	ServerConfig
-	handler    Handler
-	transport  *P2PTransport
-	peers      map[peer.ID]*Peer
-	addPeer    chan libp2pnetwork.Stream
-	deletePeer chan peer.ID
-	msgCh      chan *Message
+	handler       Handler
+	transport     *P2PTransport
+	peers         map[peer.ID]*Peer
+	addPeer       chan libp2pnetwork.Stream
+	deletePeer    chan peer.ID
+	msgCh         chan *Message
+	awaitingPeers chan *Peer
 }
 
 type ServerConfig struct {
@@ -61,12 +63,13 @@ func NewServer(cfg ServerConfig) *Server {
 	cfg.ApplyDefaults()
 
 	server = &Server{
-		ServerConfig: cfg,
-		handler:      &DefaultHandler{},
-		peers:        make(map[peer.ID]*Peer),
-		addPeer:      make(chan libp2pnetwork.Stream),
-		deletePeer:   make(chan peer.ID),
-		msgCh:        make(chan *Message),
+		ServerConfig:  cfg,
+		handler:       &DefaultHandler{},
+		peers:         make(map[peer.ID]*Peer),
+		addPeer:       make(chan libp2pnetwork.Stream),
+		deletePeer:    make(chan peer.ID),
+		msgCh:         make(chan *Message),
+		awaitingPeers: make(chan *Peer),
 	}
 
 	server.transport = &P2PTransport{
@@ -92,22 +95,20 @@ func (s *Server) loop() {
 	for {
 		select {
 		case conn := <-s.addPeer:
-			log.Info("addPeer called")
-			// validating peer using handshake
+			log.Info("adding new peer connection")
+
+			// validating peer using handshake connection remains in the pending state until handshake is complete
 			peerId := conn.Conn().RemotePeer().String()
 			peer := Peer{
-				conn:     conn,
-				Status:   constants.ConnectionStateActive,
-				PeerID:   conn.Conn().RemotePeer().ShortString(),
-				Username: conn.Conn().RemotePeer().ShortString(),
-				Avatar:   "https://api.dicebear.com/9.x/adventurer/svg?seed=Oliver&radius=50",
+				conn:   conn,
+				Status: constants.ConnectionStatePending,
+				PeerID: string(conn.Conn().RemotePeer().ShortString()),
 			}
 
-			// below is not required for libp2p implementation
-			// if err := s.handshake(&peer); err != nil {
-			// 	log.Infof("handshake failed with peer %s due to %s", peerId, err)
-			// 	break
-			// }
+			if err := s.handshake(&peer); err != nil {
+				log.Infof("handshake failed with peer %s due to %s", peerId, err)
+				break
+			}
 
 			// handshake was success adding it to the peers
 			// starting the read loop
@@ -203,4 +204,35 @@ func (s *Server) GetPeerByUsername(username string) *Peer {
 		}
 	}
 	return nil
+}
+
+func (s *Server) handshake(p *Peer) error {
+	// reading the handshake message
+	peerHandshake, err := p.ReadHandshakeMessage()
+	if err != nil {
+		return err
+	}
+
+	// validating the handshake message
+	if peerHandshake.Version != s.Version {
+		return errors.New("version mismatch")
+	}
+
+	log.Infof("handshake received from peer %s with version %s", p.PeerID, peerHandshake.Version)
+
+	// awaiting user to accept the connection and sending self handshake message
+	// or terminate the connection
+	s.awaitingPeers <- p
+
+	go processAwaitingPeer(s, p)
+
+	return nil
+}
+
+func processAwaitingPeer(s *Server, p *Peer) {
+	// waiting for user to accept or reject the connection
+	// for now auto accepting the connection after 5 seconds
+	// time.Sleep(5 * time.Second)
+
+	return
 }

@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 
@@ -127,44 +128,48 @@ func (s *Server) loop() {
 }
 
 func (s *Server) Connect(remoteAddr string) (*Peer, error) {
-	// 1. Parse the multiaddress
+	// parse the multiaddress
 	maddr, err := ma.NewMultiaddr(remoteAddr)
 	if err != nil {
 		log.Errorf("invalid multiaddress: %s", err)
 		return nil, err
 	}
 
-	// 2. Extract peer info from multiaddr (contains ID + address)
+	// extract peer info from multiaddr (contains ID + address)
 	peerInfo, err := peer.AddrInfoFromP2pAddr(maddr)
 	if err != nil {
 		log.Errorf("invalid peer info from multiaddr: %s", err)
 		return nil, err
 	}
 
-	// 3. Add peer to peerstore so we can dial it
+	// add peer to peerstore so we can dial it
 	if err := s.transport.host.Connect(context.Background(), *peerInfo); err != nil {
 		log.Errorf("error connecting to peer: %s", err)
 		return nil, err
 	}
 
-	// 4. Open a stream to the peer using your protocol
-	stream, err := s.transport.host.NewStream(context.Background(), peerInfo.ID, "/ypoker/1.0.0")
+	// open a stream to the peer using your protocol
+	// replace "/yoker/1.0.0" with your actual protocol ID
+	stream, err := s.transport.host.NewStream(context.Background(), peerInfo.ID, "/yoker/1.0.0")
 	if err != nil {
 		log.Errorf("error opening stream: %s", err)
 		return nil, err
 	}
 
+	peer := &Peer{
+		conn:   stream,
+		Status: constants.ConnectionStatePending,
+		PeerID: stream.Conn().RemotePeer().ShortString(),
+	}
+
+	// send handshake message
+	if err := s.sendHandshake(peer); err != nil {
+		log.Errorf("error sending handshake: %s", err)
+		return nil, err
+	}
 	log.WithField(constants.ServerName, s.ServerName).Infof("connection request sucess %s at %s adding to peers", peerInfo.ID, remoteAddr)
 
-	s.addPeer <- stream
-
-	return &Peer{
-		conn:     stream,
-		Status:   constants.ConnectionStateActive,
-		PeerID:   stream.Conn().RemotePeer().ShortString(),
-		Username: stream.Conn().RemotePeer().ShortString(),
-		Avatar:   "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Nolan&radius=50",
-	}, nil
+	return peer, nil
 }
 
 func (s *Server) GetMyFullAddr() []string {
@@ -224,15 +229,23 @@ func (s *Server) handshake(p *Peer) error {
 	// or terminate the connection
 	s.awaitingPeers <- p
 
-	go processAwaitingPeer(s, p)
+	return nil
+}
+
+func (s *Server) sendHandshake(p *Peer) error {
+	hs := GetSelfHandshakeMessage()
+	hsData, err := json.Marshal(hs)
+	if err != nil {
+		return err
+	}
+
+	if err := p.Send(hsData); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func processAwaitingPeer(s *Server, p *Peer) {
-	// waiting for user to accept or reject the connection
-	// for now auto accepting the connection after 5 seconds
-	// time.Sleep(5 * time.Second)
-
-	return
+func (s *Server) AwaitingPeers() chan *Peer {
+	return s.awaitingPeers
 }

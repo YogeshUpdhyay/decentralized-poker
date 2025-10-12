@@ -3,7 +3,7 @@ package constants
 const (
 	Empty                       = ""
 	ApplicationDataDir          = ".yoker"
-	ApplicationIdentityFileName = "identity.key"
+	ApplicationIdentityFileName = "identitygamma.key"
 	ApplicationConfigFileName   = "config.yml"
 	ApplicationDBFilleName      = "yoker.db"
 	DefaultDatabasePath         = ApplicationDataDir + "/" + ApplicationDBFilleName
@@ -13,7 +13,7 @@ const (
 
 	ServerName = "serverName"
 
-	ServerNameDefault     = "yoker gamma"
+	ServerNameDefault     = "yoker alpha"
 	ServerPortDefault     = "9000"
 	ServerVersionDefault  = "yoker1.0.0"
 	StreamProtocolDefault = "/ypoker/1.0.0"

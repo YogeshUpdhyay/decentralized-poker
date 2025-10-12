@@ -126,6 +126,29 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 		},
 	)
 
+	// bottom layout with new chat button
+	bottomLayout := container.NewVBox(newChatButton)
+
+	// checking if there are any awaiting peers and if there
+	// are, add them to the bottom layout
+	go func() {
+		server := p2p.GetServer()
+		for peer := range server.AwaitingPeers() {
+			log.WithContext(ctx).Infof("new peer awaiting approval: %s", peer.PeerID)
+
+			// add the peer to the chat threads list
+			newChatButton := widget.NewButtonWithIcon(
+				"New Chat",
+				theme.ContentAddIcon(),
+				func() {
+					c.getAddNewChatPopUp(ctx)
+				},
+			)
+			bottomLayout.Add(newChatButton)
+			log.WithContext(ctx).Infof("added new peer to the chat threads: %s", peer.PeerID)
+		}
+	}()
+
 	return container.NewBorder(
 		nil, nil, nil, canvas.NewLine(color.White),
 		container.NewBorder(
@@ -137,7 +160,7 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 				),
 			),
 			container.NewPadded(
-				newChatButton,
+				bottomLayout,
 			), nil, nil, chatThreadsList,
 		),
 	)

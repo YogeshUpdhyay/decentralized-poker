@@ -1,9 +1,8 @@
 package p2p
 
 import (
-	"github.com/YogeshUpdhyay/ypoker/internal/database"
+	"github.com/YogeshUpdhyay/ypoker/internal/db"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
-	log "github.com/sirupsen/logrus"
 )
 
 type UserInfo struct {
@@ -17,17 +16,14 @@ type HandShake struct {
 }
 
 func GetSelfHandshakeMessage() *HandShake {
-	metadata := database.UserMetadata{}
-	if err := metadata.GetFirst(); err != nil {
-		log.Errorf("error getting user metadata: %v", err)
-		return nil
-	}
+	userMetadata := db.UserMetadata{}
+	db.Get().First(&userMetadata)
 
 	return &HandShake{
 		Version: utils.GetAppConfig().Version,
 		UserInfo: UserInfo{
-			Name:      metadata.Username,
-			AvatarUrl: metadata.AvatarUrl,
+			Name:      userMetadata.Username,
+			AvatarUrl: userMetadata.AvatarUrl,
 		},
 	}
 }

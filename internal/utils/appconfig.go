@@ -13,6 +13,7 @@ type AppConfig struct {
 	Name           string `yaml:"server_name"`
 	Version        string `yaml:"version"`
 	StreamProtocol string `yaml:"stream_protocol"`
+	DatabasePath   string `yaml:"database_path"`
 }
 
 func DefaultAppConfig() AppConfig {
@@ -21,6 +22,7 @@ func DefaultAppConfig() AppConfig {
 		Name:           constants.ServerNameDefault,
 		Version:        constants.ServerVersionDefault,
 		StreamProtocol: constants.StreamProtocolDefault,
+		DatabasePath:   constants.DatabasePathDefault,
 	}
 }
 

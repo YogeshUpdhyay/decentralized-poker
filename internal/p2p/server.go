@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/db"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	libp2pnetwork "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	ma "github.com/multiformats/go-multiaddr"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,7 +20,7 @@ type Server struct {
 	ServerConfig
 	handler       Handler
 	transport     *P2PTransport
-	peers         map[peer.ID]*Peer
+	peers         map[string]*Peer
 	addPeer       chan libp2pnetwork.Stream
 	deletePeer    chan peer.ID
 	msgCh         chan *Message
@@ -66,7 +69,7 @@ func NewServer(cfg ServerConfig) *Server {
 	server = &Server{
 		ServerConfig:  cfg,
 		handler:       &DefaultHandler{},
-		peers:         make(map[peer.ID]*Peer),
+		peers:         make(map[string]*Peer),
 		addPeer:       make(chan libp2pnetwork.Stream),
 		deletePeer:    make(chan peer.ID),
 		msgCh:         make(chan *Message),
@@ -102,7 +105,7 @@ func (s *Server) loop() {
 			peerId := conn.Conn().RemotePeer().String()
 			peer := Peer{
 				conn:   conn,
-				Status: constants.ConnectionStatePending,
+				Status: constants.ConnectionStateActive,
 				PeerID: string(conn.Conn().RemotePeer().ShortString()),
 			}
 
@@ -113,21 +116,21 @@ func (s *Server) loop() {
 
 			// handshake was success adding it to the peers
 			// starting the read loop
-			s.peers[conn.Conn().RemotePeer()] = &peer
-			go peer.ReadLoop(s.msgCh, s.deletePeer)
+			// s.peers[conn.Conn().RemotePeer().String()] = &peer
+			// go peer.ReadLoop(s.msgCh, s.deletePeer)
 
 			log.WithField(constants.ServerName, s.ServerName).Infof("new player connected %s", peerId)
 		case msg := <-s.msgCh:
 			s.handler.HandleMessage(msg)
 		case peerId := <-s.deletePeer:
 			// connection is closed removing from peers
-			delete(s.peers, peerId)
+			delete(s.peers, peerId.String())
 			log.Infof("player disconnected %s", peerId.String())
 		}
 	}
 }
 
-func (s *Server) Connect(remoteAddr string) (*Peer, error) {
+func (s *Server) Connect(ctx context.Context, remoteAddr string) (*Peer, error) {
 	// parse the multiaddress
 	maddr, err := ma.NewMultiaddr(remoteAddr)
 	if err != nil {
@@ -143,14 +146,14 @@ func (s *Server) Connect(remoteAddr string) (*Peer, error) {
 	}
 
 	// add peer to peerstore so we can dial it
-	if err := s.transport.host.Connect(context.Background(), *peerInfo); err != nil {
+	if err := s.transport.host.Connect(ctx, *peerInfo); err != nil {
 		log.Errorf("error connecting to peer: %s", err)
 		return nil, err
 	}
 
 	// open a stream to the peer using your protocol
-	// replace "/yoker/1.0.0" with your actual protocol ID
-	stream, err := s.transport.host.NewStream(context.Background(), peerInfo.ID, "/yoker/1.0.0")
+	appConfig := utils.GetAppConfig()
+	stream, err := s.transport.host.NewStream(ctx, peerInfo.ID, protocol.ID(appConfig.StreamProtocol))
 	if err != nil {
 		log.Errorf("error opening stream: %s", err)
 		return nil, err
@@ -158,7 +161,7 @@ func (s *Server) Connect(remoteAddr string) (*Peer, error) {
 
 	peer := &Peer{
 		conn:   stream,
-		Status: constants.ConnectionStatePending,
+		Status: constants.ConnectionStateActive,
 		PeerID: stream.Conn().RemotePeer().ShortString(),
 	}
 
@@ -167,7 +170,14 @@ func (s *Server) Connect(remoteAddr string) (*Peer, error) {
 		log.Errorf("error sending handshake: %s", err)
 		return nil, err
 	}
-	log.WithField(constants.ServerName, s.ServerName).Infof("connection request sucess %s at %s adding to peers", peerInfo.ID, remoteAddr)
+	log.WithContext(ctx).Infof("connection request sucess %s at %s adding to peers", peerInfo.ID, remoteAddr)
+
+	// adding this pending connection to db
+	connectionRequest := db.ConnectionRequests{
+		PeerID: stream.Conn().RemotePeer().ShortString(),
+		Status: constants.RequestStatusSent,
+	}
+	db.Get().Create(&connectionRequest)
 
 	return peer, nil
 }
@@ -198,36 +208,34 @@ func (s *Server) InitializeIdentityFlow(ctx context.Context, password string) er
 	return nil
 }
 
-func (s *Server) GetPeers() map[peer.ID]*Peer {
+func (s *Server) GetPeers() map[string]*Peer {
 	return s.peers
 }
 
 func (s *Server) GetPeerByUsername(username string) *Peer {
-	for _, p := range s.peers {
-		if p.Username == username {
-			return p
-		}
-	}
 	return nil
 }
 
 func (s *Server) handshake(p *Peer) error {
-	// reading the handshake message
 	peerHandshake, err := p.ReadHandshakeMessage()
 	if err != nil {
 		return err
 	}
 
-	// validating the handshake message
 	if peerHandshake.Version != s.Version {
 		return errors.New("version mismatch")
 	}
 
 	log.Infof("handshake received from peer %s with version %s", p.PeerID, peerHandshake.Version)
 
-	// awaiting user to accept the connection and sending self handshake message
-	// or terminate the connection
-	s.awaitingPeers <- p
+	// add as pending connection awaiting approval
+	peerInfo := db.ConnectionRequests{
+		PeerID:    p.PeerID,
+		Username:  peerHandshake.UserInfo.Name,
+		AvatarUrl: peerHandshake.UserInfo.AvatarUrl,
+		Status:    constants.RequestStatusAwaitingDecision,
+	}
+	db.Get().Create(&peerInfo)
 
 	return nil
 }
@@ -244,8 +252,4 @@ func (s *Server) sendHandshake(p *Peer) error {
 	}
 
 	return nil
-}
-
-func (s *Server) AwaitingPeers() chan *Peer {
-	return s.awaitingPeers
 }

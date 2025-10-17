@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
-	"github.com/YogeshUpdhyay/ypoker/internal/database"
+	"github.com/YogeshUpdhyay/ypoker/internal/db"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/forms"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
@@ -61,13 +61,8 @@ func (l *Login) Content(ctx context.Context) fyne.CanvasObject {
 		}
 
 		// fetching user from the database
-		userMetadata := database.UserMetadata{Username: username}
-		err = userMetadata.GetByID()
-		if err != nil {
-			log.Errorf("error fetching user from the database: %v", err)
-			return
-		}
-
+		userMetadata := db.UserMetadata{}
+		db.Get().First(&userMetadata)
 		if userMetadata.Username == constants.Empty || userMetadata.Username != username {
 			log.Errorf("user not found")
 			// add how ui will show this error

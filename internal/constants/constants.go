@@ -6,7 +6,7 @@ const (
 	ApplicationIdentityFileName = "identitygamma.key"
 	ApplicationConfigFileName   = "config.yml"
 	ApplicationDBFilleName      = "yoker.db"
-	DefaultDatabasePath         = ApplicationDataDir + "/" + ApplicationDBFilleName
+	DatabasePathDefault         = ApplicationDataDir + "/" + ApplicationDBFilleName
 
 	Ping = "PING"
 	Pong = "PONG"
@@ -23,6 +23,12 @@ const (
 	ConnectionStateInactive = "inactive"
 	ConnectionStatePending  = "pending"
 
+	// request status
+	RequestStatusSent             = "sent"
+	RequestStatusAwaitingDecision = "awaiting_decision"
+	RequestStatusAccepted         = "accepted"
+	RequestStatusRejected         = "rejected"
+
 	// message statuses
 	ToBeSent  = "toBeSent"
 	Sending   = "sending"
@@ -30,4 +36,7 @@ const (
 	Delivered = "delivered"
 	Read      = "read"
 	Received  = "received"
+
+	// dummy
+	DummyAvatarUrl = "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Easton&radius=50&backgroundType=solid,gradientLinear"
 )

@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/db"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/components"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
@@ -21,22 +22,41 @@ import (
 )
 
 type Chat struct {
-	chatThreadsData   binding.UntypedList
-	openChatUsername  binding.String
-	openChatAvatarUrl binding.String
+	chatThreadsData    binding.UntypedList
+	pendingRequestData binding.UntypedList
+	openChatUsername   binding.String
+	openChatAvatarUrl  binding.String
 }
 
-func (c *Chat) OnShow(_ context.Context) {
-	// fetch chat threads data from the server's peer list
+func (c *Chat) OnShow(ctx context.Context) {
+	// fetch chat threads data from the db
 	c.chatThreadsData = binding.NewUntypedList()
-	for peerID, peer := range p2p.GetServer().GetPeers() {
+	peers := []db.PeerInfo{}
+	_ = db.Get().Find(&peers)
+	log.WithContext(ctx).Infof("found %d peers in the database", len(peers))
+
+	for _, peer := range peers {
 		peerData := models.PeerData{
-			PeerID:      peerID.ShortString(),
+			PeerID:      peer.PeerID,
 			Username:    peer.Username,
-			Avatar:      peer.Avatar,
-			LastMessage: "No messages yet",
+			Avatar:      peer.AvatarUrl,
+			LastMessage: peer.Status,
 		}
 		_ = c.chatThreadsData.Append(peerData)
+	}
+
+	// fetch pending requests data from the db
+	c.pendingRequestData = binding.NewUntypedList()
+	pendingRequests := []db.ConnectionRequests{}
+	_ = db.Get().Where("status = ?", constants.RequestStatusAwaitingDecision).Find(&pendingRequests)
+	for _, pr := range pendingRequests {
+		log.WithContext(ctx).Infof("found pending request from peer id %s", pr.PeerID)
+		peerData := models.PeerData{
+			PeerID:   pr.PeerID,
+			Username: pr.Username,
+			Avatar:   pr.AvatarUrl,
+		}
+		_ = c.pendingRequestData.Append(peerData)
 	}
 
 	c.openChatUsername = binding.NewString()
@@ -127,27 +147,14 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	)
 
 	// bottom layout with new chat button
-	bottomLayout := container.NewVBox(newChatButton)
-
-	// checking if there are any awaiting peers and if there
-	// are, add them to the bottom layout
-	go func() {
-		server := p2p.GetServer()
-		for peer := range server.AwaitingPeers() {
-			log.WithContext(ctx).Infof("new peer awaiting approval: %s", peer.PeerID)
-
-			// add the peer to the chat threads list
-			newChatButton := widget.NewButtonWithIcon(
-				"New Chat",
-				theme.ContentAddIcon(),
-				func() {
-					c.getAddNewChatPopUp(ctx)
-				},
-			)
-			bottomLayout.Add(newChatButton)
-			log.WithContext(ctx).Infof("added new peer to the chat threads: %s", peer.PeerID)
-		}
-	}()
+	bottomLayout := container.NewVBox(
+		newChatButton,
+		components.NewPendingRequestsCTA(
+			c.pendingRequestData,
+			func(peerID string) { c.handleIncomingRequest(ctx, peerID, constants.RequestStatusAccepted) },
+			func(peerID string) { c.handleIncomingRequest(ctx, peerID, constants.RequestStatusRejected) },
+		),
+	)
 
 	return container.NewBorder(
 		nil, nil, nil, canvas.NewLine(color.White),
@@ -370,7 +377,7 @@ func (c *Chat) connectToPeer(ctx context.Context, address string) error {
 		return nil
 	}
 
-	peer, err := server.Connect(address)
+	_, err := server.Connect(ctx, address)
 	if err != nil {
 		log.WithContext(ctx).WithError(err).Errorf("error connecting to peer %s", address)
 		return err
@@ -378,17 +385,53 @@ func (c *Chat) connectToPeer(ctx context.Context, address string) error {
 
 	log.WithContext(ctx).Infof("successfully connected to peer %s", address)
 
-	err = c.chatThreadsData.Append(models.PeerData{
-		PeerID:      peer.PeerID,
-		Username:    peer.Username,
-		Avatar:      peer.Avatar,
-		LastMessage: "No messages yet",
-	})
-	if err != nil {
-		log.WithContext(ctx).WithError(err).Errorf("error adding peer to the chat threads %s", address)
-		return err
+	return nil
+}
+
+func (c *Chat) handleIncomingRequest(ctx context.Context, peerID, decision string) {
+	log.WithContext(ctx).Infof("handling incoming request from peer %s with decision %s", peerID, decision)
+
+	dbConnReq := db.ConnectionRequests{}
+	result := db.Get().Where("peer_id = ?", peerID).First(&dbConnReq)
+	if result.Error != nil {
+		log.WithContext(ctx).WithError(result.Error).Errorf("error fetching connection request from peer %s", peerID)
+		return
 	}
 
-	log.WithContext(ctx).Infof("added peer to the binding %s", peer.PeerID)
-	return nil
+	dbConnReq.Status = decision
+	saveResult := db.Get().Save(&dbConnReq)
+	if saveResult.Error != nil {
+		log.WithContext(ctx).WithError(saveResult.Error).Errorf("error updating connection request status for peer %s", peerID)
+		return
+	}
+
+	if decision == constants.RequestStatusAccepted {
+		log.WithContext(ctx).Infof("connection request from peer %s accepted", peerID)
+		peerInfo := db.PeerInfo{
+			PeerID:    dbConnReq.PeerID,
+			Username:  dbConnReq.Username,
+			AvatarUrl: dbConnReq.AvatarUrl,
+			Address:   dbConnReq.Address,
+		}
+		createResult := db.Get().Create(&peerInfo)
+		if createResult.Error != nil {
+			log.WithContext(ctx).WithError(createResult.Error).Errorf("error creating peer info for peer %s", peerID)
+			return
+		}
+		log.WithContext(ctx).Infof("peer info for peer %s created successfully", peerID)
+	}
+
+	pendingPeerReqList := []any{}
+	pendingRequests := []db.ConnectionRequests{}
+	_ = db.Get().Where("status = ?", constants.RequestStatusAwaitingDecision).Find(&pendingRequests)
+	for _, pr := range pendingRequests {
+		log.WithContext(ctx).Infof("found pending request from peer id %s", pr.PeerID)
+		peerData := models.PeerData{
+			PeerID:   pr.PeerID,
+			Username: pr.Username,
+			Avatar:   pr.AvatarUrl,
+		}
+		pendingPeerReqList = append(pendingPeerReqList, peerData)
+	}
+	_ = c.pendingRequestData.Set(pendingPeerReqList)
 }

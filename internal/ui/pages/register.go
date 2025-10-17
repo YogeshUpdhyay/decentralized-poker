@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
-	"github.com/YogeshUpdhyay/ypoker/internal/database"
+	"github.com/YogeshUpdhyay/ypoker/internal/db"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/forms"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
@@ -66,17 +66,18 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 		}
 
 		// storing user name to the metadata table
-		userMetadata := database.UserMetadata{
-			Username:    username,
-			LastLoginTs: int(time.Now().Unix()),
-			CreateTs:    int(time.Now().Unix()),
-			UpdateTs:    int(time.Now().Unix()),
-		}
-		err = userMetadata.Save()
-		if err != nil {
-			log.Errorf("failed to save user metadata: %v", err)
+		userMetadata := db.UserMetadata{}
+		db.Get().First(&userMetadata, username)
+		if userMetadata.Username != constants.Empty {
+			log.Errorf("user already exists with username: %s", username)
+			// handle this error in the ui as well
 			return
 		}
+
+		userMetadata.Username = username
+		userMetadata.AvatarUrl = constants.DummyAvatarUrl
+		userMetadata.LastLoginTs = time.Now()
+		db.Get().Create(&userMetadata)
 		log.WithContext(ctx).Infof("user metadata saved successfully for user: %s", username)
 
 		// starting the server

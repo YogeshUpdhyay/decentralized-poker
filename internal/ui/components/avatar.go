@@ -3,7 +3,6 @@ package components
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	log "github.com/sirupsen/logrus"
@@ -28,10 +27,9 @@ func (a *Avatar) CreateRenderer() fyne.WidgetRenderer {
 	}
 	image := canvas.NewImageFromResource(imageResource)
 	image.SetMinSize(fyne.NewSize(50, 50))
+	image.FillMode = canvas.ImageFillContain
 
 	return widget.NewSimpleRenderer(
-		container.NewStack(
-			image,
-		),
+		image,
 	)
 }

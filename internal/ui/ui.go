@@ -37,7 +37,7 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	appConfig := utils.GetAppConfig()
 	serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
 	server := p2p.NewServer(serverConfig)
-	go server.Start("oggy@123")
+	go server.Start(ctx, "oggy@123")
 	time.Sleep(2 * time.Second)
 
 	// registering pages to router

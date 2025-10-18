@@ -2,6 +2,7 @@ package constants
 
 const (
 	Empty                       = ""
+	PeerID                      = "peerID"
 	ApplicationDataDir          = ".yoker"
 	ApplicationIdentityFileName = "identitygamma.key"
 	ApplicationConfigFileName   = "config.yml"

@@ -77,7 +77,7 @@ func (l *Login) Content(ctx context.Context) fyne.CanvasObject {
 			ServerName: appConfig.Name,
 		}
 		server := p2p.NewServer(serverConfig)
-		go server.Start(password)
+		go server.Start(ctx, password)
 
 		router.GetRouter().Navigate(ctx, constants.ChatRoute)
 	})

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,4 +25,9 @@ func GetAddressQRS(addresses []string) (string, error) {
 		return "", err
 	}
 	return qrPath, nil
+}
+
+func MarshalPayload(payload interface{}) json.RawMessage {
+	b, _ := json.Marshal(payload)
+	return b
 }

@@ -1,0 +1,211 @@
+package components
+
+import (
+	"context"
+	"image/color"
+	"strings"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
+	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/db"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
+	p2pModels "github.com/YogeshUpdhyay/ypoker/internal/p2p/models"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
+	"github.com/YogeshUpdhyay/ypoker/internal/utils"
+	log "github.com/sirupsen/logrus"
+)
+
+func NewSideNavBottomBar(ctx context.Context, pendingRequestData binding.UntypedList) *fyne.Container {
+	// new chat button
+	newChatButton := widget.NewButtonWithIcon(
+		"New Chat",
+		theme.ContentAddIcon(),
+		func() {
+			getAddNewChatPopUp(ctx)
+		},
+	)
+
+	// bottom layout with new chat button
+	bottomLayout := container.NewVBox(
+		newChatButton,
+		NewPendingRequestsCTA(
+			pendingRequestData,
+			func(peerID string) {
+				handleIncomingRequest(ctx, peerID, constants.RequestStatusAccepted, pendingRequestData)
+			},
+			func(peerID string) {
+				handleIncomingRequest(ctx, peerID, constants.RequestStatusRejected, pendingRequestData)
+			},
+		),
+	)
+	return container.NewPadded(
+		bottomLayout,
+	)
+}
+
+func getAddNewChatPopUp(ctx context.Context) {
+	log.WithContext(ctx).Info("generating add new chat pop up")
+
+	// modal title
+	modalTitle := canvas.NewText("Start a new chat", color.White)
+	modalTitle.TextSize = 16
+	modalTitle.TextStyle.Bold = true
+	modalTitleContainer := container.NewPadded(container.NewCenter(modalTitle))
+
+	// input field for peer ID or address
+	input := widget.NewEntry()
+	input.SetPlaceHolder("Enter Peer ID or Address")
+	inputFieldDimesion := canvas.NewRectangle(color.Transparent)
+	inputFieldDimesion.SetMinSize(fyne.NewSize(300, 0))
+
+	// cta row
+	ctaRow := container.NewGridWithColumns(2)
+
+	// underlay container with a border
+	underLayContainer := canvas.NewRectangle(color.Transparent)
+	underLayContainer.SetMinSize(fyne.NewSize(350, 220))
+
+	// spacer rect
+	spacerRect := canvas.NewRectangle(color.Transparent)
+	spacerRect.SetMinSize(fyne.NewSize(0, 40))
+
+	// create the content for the pop-up
+	content := container.NewPadded(
+		underLayContainer,
+		container.NewCenter(container.NewVBox(
+			modalTitleContainer,
+			spacerRect,
+			container.NewPadded(input, inputFieldDimesion),
+			spacerRect,
+			ctaRow,
+		)),
+	)
+
+	// Create the pop-up
+	popUp := widget.NewModalPopUp(
+		content,
+		fyne.CurrentApp().Driver().AllWindows()[0].Canvas(),
+	)
+
+	cancelBtn := widget.NewButton("Cancel", func() { popUp.Hide() })
+	cancelBtn.Importance = widget.MediumImportance
+	ctaRow.Add(cancelBtn)
+
+	connectBtn := widget.NewButton("Connect", func() {
+		address := strings.TrimSpace(input.Text)
+		if address != "" {
+			log.WithContext(ctx).Infof("Starting chat with peer ID: %s", address)
+			// logic to initiate chat with the given peer ID goes here
+			err := connectToPeer(ctx, address)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("error connecting to peer %s", address)
+			}
+			popUp.Hide()
+		}
+	})
+	connectBtn.Importance = widget.HighImportance
+	ctaRow.Add(connectBtn)
+
+	popUp.Show()
+}
+
+func connectToPeer(ctx context.Context, address string) error {
+	server := p2p.GetServer()
+	if server == nil {
+		return nil
+	}
+
+	_, err := server.Connect(ctx, address)
+	if err != nil {
+		log.WithContext(ctx).WithError(err).Errorf("error connecting to peer %s", address)
+		return err
+	}
+
+	log.WithContext(ctx).Infof("successfully connected to peer %s", address)
+
+	return nil
+}
+
+func handleIncomingRequest(ctx context.Context, peerID, decision string, pendingRequestData binding.UntypedList) {
+	log.WithContext(ctx).Infof("handling incoming request from peer %s with decision %s", peerID, decision)
+
+	appConfig := utils.GetAppConfig()
+	peer := p2p.GetServer().GetPeerFromPeerID(ctx, peerID)
+	if decision == constants.RequestStatusRejected {
+		peer.Send(&p2pModels.Envelope{
+			Type: p2pModels.MsgTypeHandshakeReject,
+		})
+	} else {
+		// fetching usermetadata
+		userMetadata := db.UserMetadata{}
+		tx := db.Get().First(&userMetadata)
+		if tx.Error != nil {
+			log.WithContext(ctx).WithError(tx.Error).Info("error fetching metadata")
+			return
+		}
+
+		peer.Send(&p2pModels.Envelope{
+			Type: p2pModels.MsgTypeHandshakeAck,
+			Payload: utils.MarshalPayload(p2pModels.HandShake{
+				Version: appConfig.Version,
+				UserInfo: p2pModels.UserInfo{
+					Username:  userMetadata.Username,
+					AvatarUrl: userMetadata.AvatarUrl,
+				},
+			}),
+		})
+	}
+
+	dbConnReq := db.ConnectionRequests{}
+	tx := db.Get().Where("peer_id = ?", peerID).First(&dbConnReq)
+	if tx.Error != nil {
+		log.WithContext(ctx).WithError(tx.Error).Errorf("error fetching connection request from peer %s", peerID)
+		return
+	}
+
+	dbConnReq.Status = decision
+	tx = db.Get().Save(&dbConnReq)
+	if tx.Error != nil {
+		log.WithContext(ctx).WithError(tx.Error).Errorf("error updating connection request status for peer %s", peerID)
+		return
+	}
+
+	if decision == constants.RequestStatusAccepted {
+		log.WithContext(ctx).Infof("connection request from peer %s accepted", peerID)
+		peerInfo := db.PeerInfo{
+			PeerID:    dbConnReq.PeerID,
+			Username:  dbConnReq.Username,
+			AvatarUrl: dbConnReq.AvatarUrl,
+			Address:   dbConnReq.Address,
+			Status:    constants.ConnectionStateInactive,
+		}
+		tx := db.Get().Create(&peerInfo)
+		if tx.Error != nil {
+			log.WithContext(ctx).WithError(tx.Error).Errorf("error creating peer info for peer %s", peerID)
+			return
+		}
+		log.WithContext(ctx).Infof("peer info for peer %s created successfully", peerID)
+	}
+
+	// find a better way to dot this
+	// remove the one whose decision is completed instead of
+	// rebuilding the entire thing
+	pendingPeerReqList := []any{}
+	pendingRequests := []db.ConnectionRequests{}
+	_ = db.Get().Where("status = ?", constants.RequestStatusAwaitingDecision).Find(&pendingRequests)
+	for _, pr := range pendingRequests {
+		log.WithContext(ctx).Infof("found pending request from peer id %s", pr.PeerID)
+		peerData := models.PeerData{
+			PeerID:   pr.PeerID,
+			Username: pr.Username,
+			Avatar:   pr.AvatarUrl,
+		}
+		pendingPeerReqList = append(pendingPeerReqList, peerData)
+	}
+	_ = pendingRequestData.Set(pendingPeerReqList)
+}

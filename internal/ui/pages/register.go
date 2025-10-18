@@ -85,7 +85,7 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 		serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
 		server := p2p.NewServer(serverConfig)
 		server.InitializeIdentityFlow(ctx, password)
-		go server.Start(password)
+		go server.Start(ctx, password)
 
 		// wait for server to start
 		time.Sleep(2 * time.Second)

@@ -24,9 +24,9 @@ type DefaultUI struct{}
 // initialize the UI and start the application
 func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) error {
 	app := fyneApp.New()
-
+	appConfig := utils.GetAppConfig()
 	app.Settings().SetTheme(theme.DarkTheme())
-	window := app.NewWindow("yoker alpha")
+	window := app.NewWindow(appConfig.Name)
 	window.Resize(fyne.NewSize(constants.WindowWidth, constants.WindowHeight))
 	rootCanvas := window.Canvas()
 
@@ -34,7 +34,6 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	router := router.NewRouter(ctx, rootCanvas)
 
 	// starting the server testing block
-	appConfig := utils.GetAppConfig()
 	serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
 	server := p2p.NewServer(serverConfig)
 	go server.Start(ctx, "oggy@123")

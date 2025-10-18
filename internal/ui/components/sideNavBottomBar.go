@@ -136,8 +136,14 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 
 	appConfig := utils.GetAppConfig()
 	peer := p2p.GetServer().GetPeerFromPeerID(ctx, peerID)
+
+	if peer == nil {
+		return
+	}
+
+	var err error
 	if decision == constants.RequestStatusRejected {
-		peer.Send(&p2pModels.Envelope{
+		err = peer.Send(&p2pModels.Envelope{
 			Type: p2pModels.MsgTypeHandshakeReject,
 		})
 	} else {
@@ -149,7 +155,7 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 			return
 		}
 
-		peer.Send(&p2pModels.Envelope{
+		err = peer.Send(&p2pModels.Envelope{
 			Type: p2pModels.MsgTypeHandshakeAck,
 			Payload: utils.MarshalPayload(p2pModels.HandShake{
 				Version: appConfig.Version,
@@ -159,6 +165,11 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 				},
 			}),
 		})
+	}
+
+	if err != nil {
+		log.WithContext(ctx).Infof("error sending handshake decision to user: %s", err.Error())
+		return
 	}
 
 	dbConnReq := db.ConnectionRequests{}

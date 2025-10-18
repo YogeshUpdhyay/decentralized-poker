@@ -30,10 +30,20 @@ func DefaultAppConfig() AppConfig {
 func WriteAppConfig() error {
 	config := DefaultAppConfig()
 	dir := constants.ApplicationDataDir
+	path := filepath.Join(dir, constants.ApplicationConfigFileName)
+
+	// if config file already exists, do nothing
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	// ensure directory exists
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	path := filepath.Join(dir, constants.ApplicationConfigFileName)
+
 	file, err := os.Create(path)
 	if err != nil {
 		return err

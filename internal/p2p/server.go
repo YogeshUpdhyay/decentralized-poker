@@ -188,9 +188,12 @@ func (s *Server) GetPeerFromPeerID(ctx context.Context, peerID string) *Peer {
 	peer, ok := s.peers[peerID]
 	if !ok {
 		log.WithContext(ctx).Infof("peer not found, peer id: %s", peerID)
-		return nil
 	}
 	return peer
+}
+
+func (s *Server) GetNodeID(ctx context.Context) string {
+	return s.transport.host.ID().String()
 }
 
 func (s *Server) sendHandshake(ctx context.Context, p *Peer) error {
@@ -214,7 +217,7 @@ func (s *Server) sendHandshake(ctx context.Context, p *Peer) error {
 		log.WithContext(ctx).Infof("error sending hanshake payload %v", err)
 		return err
 	}
-
+	log.WithContext(ctx).Info("hanshake sent successfully.")
 	return nil
 }
 

@@ -4,7 +4,7 @@ const (
 	Empty                       = ""
 	PeerID                      = "peerID"
 	ApplicationDataDir          = ".yoker"
-	ApplicationIdentityFileName = "identitygamma.key"
+	ApplicationIdentityFileName = "identitypi.key"
 	ApplicationConfigFileName   = "config.yml"
 	ApplicationDBFilleName      = "yoker.db"
 	DatabasePathDefault         = ApplicationDataDir + "/" + ApplicationDBFilleName

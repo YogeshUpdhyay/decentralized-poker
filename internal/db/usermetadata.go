@@ -9,4 +9,6 @@ type UserMetadata struct {
 	Username    string `gorm:"primaryKey"`
 	AvatarUrl   string
 	LastLoginTs time.Time
+	CreateTs    time.Time
+	UpdateTs    time.Time
 }

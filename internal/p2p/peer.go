@@ -47,14 +47,14 @@ func (p *Peer) ReadLoop(ctx context.Context, msgCh chan *p2pModels.Envelope, del
 			}
 			// log unexpected error and continue
 			log.Printf("read error from peer %s: %v", p.conn.Conn().RemotePeer(), err)
-			continue
+			break
 		}
 
 		// Add peer ID from connection if missing
 		if envelope.From == "" {
 			envelope.From = p.conn.Conn().RemotePeer().ShortString()
 		}
-
+		log.WithContext(ctx).Infof("new message received from %s of type %s", envelope.From, envelope.Type)
 		msgCh <- &envelope
 	}
 }

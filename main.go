@@ -22,7 +22,7 @@ func main() {
 
 	if !identityFileExists() {
 		// writing default config file
-		log.WithContext(ctx).Info("first startup, creating thte application config file")
+		log.WithContext(ctx).Info("first startup, creating the application config file")
 		if err := utils.WriteAppConfig(); err != nil {
 			log.WithContext(ctx).WithError(err).Fatal("failed to write default config file")
 		}
@@ -43,6 +43,12 @@ func identityFileExists() bool {
 
 func initializeApp(ctx context.Context) {
 	log.SetFormatter(&log.JSONFormatter{})
+	// create application directory
+	dir := constants.ApplicationDataDir
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		log.WithContext(ctx).Info("error creating application data directory")
+	}
+
 	err := db.Initialize(ctx)
 	if err != nil {
 		log.WithError(err).Fatal("failed to initialize the database")

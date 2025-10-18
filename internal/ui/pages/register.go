@@ -65,6 +65,16 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 			return
 		}
 
+		// starting the server
+		appConfig := utils.GetAppConfig()
+		serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
+		server := p2p.NewServer(serverConfig)
+		server.InitializeIdentityFlow(ctx, password)
+		go server.Start(ctx, password)
+		// wait for server to start
+		time.Sleep(2 * time.Second)
+		log.WithContext(ctx).Infof("serever started with addresses: %+v", server.GetMyFullAddr())
+
 		// storing user name to the metadata table
 		userMetadata := db.UserMetadata{}
 		db.Get().First(&userMetadata, username)
@@ -74,22 +84,14 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 			return
 		}
 
+		// update usermetadata
 		userMetadata.Username = username
 		userMetadata.AvatarUrl = constants.DummyAvatarUrl
 		userMetadata.LastLoginTs = time.Now()
+		userMetadata.CreateTs = time.Now()
+		userMetadata.PeerID = server.GetNodeID(ctx)
 		db.Get().Create(&userMetadata)
 		log.WithContext(ctx).Infof("user metadata saved successfully for user: %s", username)
-
-		// starting the server
-		appConfig := utils.GetAppConfig()
-		serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
-		server := p2p.NewServer(serverConfig)
-		server.InitializeIdentityFlow(ctx, password)
-		go server.Start(ctx, password)
-
-		// wait for server to start
-		time.Sleep(2 * time.Second)
-		log.WithContext(ctx).Infof("serever started with addresses: %+v", server.GetMyFullAddr())
 
 		router.GetRouter().Navigate(ctx, constants.ChatRoute)
 	})

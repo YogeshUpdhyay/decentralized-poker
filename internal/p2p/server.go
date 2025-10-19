@@ -155,6 +155,8 @@ func (s *Server) Connect(ctx context.Context, remoteAddr string) (*Peer, error) 
 	}
 	db.Get().Create(&connectionRequest)
 
+	s.addPeer <- stream
+
 	return peer, nil
 }
 

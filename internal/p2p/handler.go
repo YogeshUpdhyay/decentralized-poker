@@ -6,6 +6,8 @@ import (
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/db"
+	"github.com/YogeshUpdhyay/ypoker/internal/eventbus"
+	eventModels "github.com/YogeshUpdhyay/ypoker/internal/eventbus/models"
 	p2pModels "github.com/YogeshUpdhyay/ypoker/internal/p2p/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
@@ -45,8 +47,10 @@ func handleChatMessage(peerID string, chat p2pModels.ChatPayload) {
 }
 
 func handleRejection(ctx context.Context, peerID string) {
-	connectionReq := db.ConnectionRequests{PeerID: peerID}
-	tx := db.Get().Model(&connectionReq).Update("status", constants.RequestStatusRejected)
+	tx := db.Get().
+		Model(&db.ConnectionRequests{}).
+		Where("peer_id = ? AND status = ?", peerID, constants.RequestStatusSent).
+		Update("status", constants.RequestStatusRejected)
 	if tx.Error != nil {
 		log.
 			WithContext(ctx).
@@ -63,11 +67,17 @@ func handleHandshakeAck(ctx context.Context, peerID string, hsAck p2pModels.Hand
 	}
 
 	var req db.ConnectionRequests
-	if err := db.Get().Where("peer_id = ?", peerID).First(&req).Error; err != nil {
+	tx := db.Get().
+		Where(&db.ConnectionRequests{
+			PeerID: peerID,
+			Status: constants.RequestStatusAwaitingDecision,
+		}).
+		First(&req)
+	if tx.Error != nil {
 		log.
 			WithContext(ctx).
 			WithField(constants.PeerID, peerID).
-			Infof("error getting connection request: %s", err.Error())
+			Infof("error getting connection request: %s", tx.Error.Error())
 		return
 	}
 
@@ -90,7 +100,7 @@ func handleHandshakeAck(ctx context.Context, peerID string, hsAck p2pModels.Hand
 		Status:    constants.ConnectionStateInactive,
 		Address:   req.Address,
 	}
-	tx := db.Get().Create(&peerInfo)
+	tx = db.Get().Create(&peerInfo)
 	if tx.Error != nil {
 		log.
 			WithContext(ctx).
@@ -127,4 +137,11 @@ func handleHandshake(ctx context.Context, peerID string, hs p2pModels.HandShake)
 		log.WithContext(ctx).Infof("error adding connection request to the db: %s", tx.Error.Error())
 		return
 	}
+
+	// emitting event
+	eventbus.Get().Publish(constants.EventNewConnectionRequest, eventModels.NewConnectionRequestEventData{
+		PeerID:    peerID,
+		Username:  hs.UserInfo.Username,
+		AvatarUrl: hs.UserInfo.AvatarUrl,
+	})
 }

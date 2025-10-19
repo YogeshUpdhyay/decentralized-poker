@@ -8,6 +8,7 @@ import (
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/db"
+	"github.com/YogeshUpdhyay/ypoker/internal/eventbus"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
@@ -53,5 +54,7 @@ func initializeApp(ctx context.Context) {
 	if err != nil {
 		log.WithError(err).Fatal("failed to initialize the database")
 	}
+
+	eventbus.New()
 	log.WithContext(ctx).Info("application initialized successfully")
 }

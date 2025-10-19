@@ -13,6 +13,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/db"
+	"github.com/YogeshUpdhyay/ypoker/internal/eventbus"
+	eventModels "github.com/YogeshUpdhyay/ypoker/internal/eventbus/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	p2pModels "github.com/YogeshUpdhyay/ypoker/internal/p2p/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
@@ -29,6 +31,15 @@ func NewSideNavBottomBar(ctx context.Context, pendingRequestData binding.Untyped
 			getAddNewChatPopUp(ctx)
 		},
 	)
+
+	eventbus.Get().Subscribe(constants.EventNewConnectionRequest, func(event eventbus.Event) {
+		eventData := event.Payload.(eventModels.NewConnectionRequestEventData)
+		pendingRequestData.Prepend(models.PeerData{
+			PeerID:   eventData.PeerID,
+			Username: eventData.Username,
+			Avatar:   eventData.AvatarUrl,
+		})
+	})
 
 	// bottom layout with new chat button
 	bottomLayout := container.NewVBox(
@@ -136,17 +147,11 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 
 	appConfig := utils.GetAppConfig()
 	peer := p2p.GetServer().GetPeerFromPeerID(ctx, peerID)
-
-	if peer == nil {
-		return
+	envelope := &p2pModels.Envelope{
+		Type: p2pModels.MsgTypeHandshakeReject,
 	}
 
-	var err error
-	if decision == constants.RequestStatusRejected {
-		err = peer.Send(&p2pModels.Envelope{
-			Type: p2pModels.MsgTypeHandshakeReject,
-		})
-	} else {
+	if decision == constants.RequestStatusAccepted {
 		// fetching usermetadata
 		userMetadata := db.UserMetadata{}
 		tx := db.Get().First(&userMetadata)
@@ -155,22 +160,22 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 			return
 		}
 
-		err = peer.Send(&p2pModels.Envelope{
-			Type: p2pModels.MsgTypeHandshakeAck,
-			Payload: utils.MarshalPayload(p2pModels.HandShake{
-				Version: appConfig.Version,
-				UserInfo: p2pModels.UserInfo{
-					Username:  userMetadata.Username,
-					AvatarUrl: userMetadata.AvatarUrl,
-				},
-			}),
+		envelope.Type = p2pModels.MsgTypeHandshakeAck
+		envelope.Payload = utils.MarshalPayload(p2pModels.HandShake{
+			Version: appConfig.Version,
+			UserInfo: p2pModels.UserInfo{
+				Username:  userMetadata.Username,
+				AvatarUrl: userMetadata.AvatarUrl,
+			},
 		})
 	}
 
+	err := peer.Send(envelope)
 	if err != nil {
-		log.WithContext(ctx).Infof("error sending handshake decision to user: %s", err.Error())
+		log.WithContext(ctx).WithError(err).Infof("errro sending hanshake reponse to peer")
 		return
 	}
+	log.WithContext(ctx).Info("handshake decision sent to peer")
 
 	dbConnReq := db.ConnectionRequests{}
 	tx := db.Get().Where("peer_id = ?", peerID).First(&dbConnReq)
@@ -201,22 +206,25 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 			return
 		}
 		log.WithContext(ctx).Infof("peer info for peer %s created successfully", peerID)
+
+		eventbus.Get().Publish(constants.EventThreadListUpdated, nil)
 	}
 
-	// find a better way to dot this
-	// remove the one whose decision is completed instead of
-	// rebuilding the entire thing
-	pendingPeerReqList := []any{}
-	pendingRequests := []db.ConnectionRequests{}
-	_ = db.Get().Where("status = ?", constants.RequestStatusAwaitingDecision).Find(&pendingRequests)
-	for _, pr := range pendingRequests {
-		log.WithContext(ctx).Infof("found pending request from peer id %s", pr.PeerID)
-		peerData := models.PeerData{
-			PeerID:   pr.PeerID,
-			Username: pr.Username,
-			Avatar:   pr.AvatarUrl,
-		}
-		pendingPeerReqList = append(pendingPeerReqList, peerData)
-	}
+	// removing the peer id whose decision is taken from the
+	// pending requests list
+	pendingPeerReqList, _ := pendingRequestData.Get()
+	pendingPeerReqList = removePeerByID(pendingPeerReqList, peerID)
 	_ = pendingRequestData.Set(pendingPeerReqList)
+}
+
+func removePeerByID(list []any, peerID string) []any {
+	newList := make([]any, 0, len(list))
+	for _, item := range list {
+		if pd, ok := item.(models.PeerData); ok {
+			if pd.PeerID != peerID {
+				newList = append(newList, pd)
+			}
+		}
+	}
+	return newList
 }

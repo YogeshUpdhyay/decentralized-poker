@@ -38,6 +38,10 @@ const (
 	Read      = "read"
 	Received  = "received"
 
+	// events
+	EventNewConnectionRequest = "new_connection_request"
+	EventThreadListUpdated    = "thread_list_upadted"
+
 	// dummy
 	DummyAvatarUrl = "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Easton&radius=50&backgroundType=solid,gradientLinear"
 )

@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/db"
+	"github.com/YogeshUpdhyay/ypoker/internal/eventbus"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/components"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
@@ -29,33 +30,11 @@ type Chat struct {
 func (c *Chat) OnShow(ctx context.Context) {
 	// fetch chat threads data from the db
 	c.chatThreadsData = binding.NewUntypedList()
-	peers := []db.PeerInfo{}
-	_ = db.Get().Find(&peers)
-	log.WithContext(ctx).Infof("found %d peers in the database", len(peers))
-
-	for _, peer := range peers {
-		peerData := models.PeerData{
-			PeerID:      peer.PeerID,
-			Username:    peer.Username,
-			Avatar:      peer.AvatarUrl,
-			LastMessage: peer.Status,
-		}
-		_ = c.chatThreadsData.Append(peerData)
-	}
+	c.chatThreadsData.Set(getChatThreadsList(ctx))
 
 	// fetch pending requests data from the db
 	c.pendingRequestData = binding.NewUntypedList()
-	pendingRequests := []db.ConnectionRequests{}
-	_ = db.Get().Where("status = ?", constants.RequestStatusAwaitingDecision).Find(&pendingRequests)
-	for _, pr := range pendingRequests {
-		log.WithContext(ctx).Infof("found pending request from peer id %s", pr.PeerID)
-		peerData := models.PeerData{
-			PeerID:   pr.PeerID,
-			Username: pr.Username,
-			Avatar:   pr.AvatarUrl,
-		}
-		_ = c.pendingRequestData.Append(peerData)
-	}
+	c.pendingRequestData.Set(getPendingRequests(ctx))
 
 	c.openChatUsername = binding.NewString()
 	c.openChatAvatarUrl = binding.NewString()
@@ -98,21 +77,14 @@ func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	// chat threads list
 	chatThreadsList := components.NewChatThreadListWithData(
 		c.chatThreadsData,
-		func(peerID, username, avatarUrl string) {
-			log.WithContext(ctx).Infof("chat thread tapped: %s, %s, %s", peerID, username, avatarUrl)
-
-			err := c.openChatAvatarUrl.Set(avatarUrl)
-			if err != nil {
-				log.WithContext(ctx).Infof("error setting open chat avatar url %s", err.Error())
-			}
-
-			err = c.openChatUsername.Set(username)
-			if err != nil {
-				log.WithContext(ctx).Infof("error setting open chat username %s", err.Error())
-			}
-
-		},
+		c.onChatThreadTap,
 	)
+
+	eventbus.Get().Subscribe(constants.EventThreadListUpdated, func(event eventbus.Event) {
+		log.WithContext(ctx).Info("thread list updated")
+		chatThreads := getChatThreadsList(ctx)
+		c.chatThreadsData.Set(chatThreads)
+	})
 
 	return container.NewBorder(
 		nil, nil, nil, canvas.NewLine(color.White),
@@ -217,4 +189,53 @@ func (c *Chat) getChatLayout(ctx context.Context, username, avatarUrl string) fy
 		nil, nil,
 		list,
 	)
+}
+
+func getChatThreadsList(ctx context.Context) []any {
+	peers := []db.PeerInfo{}
+	_ = db.Get().Find(&peers)
+	log.WithContext(ctx).Infof("found %d peers in the database", len(peers))
+
+	chatThreads := []any{}
+	for _, peer := range peers {
+		peerData := models.PeerData{
+			PeerID:      peer.PeerID,
+			Username:    peer.Username,
+			Avatar:      peer.AvatarUrl,
+			LastMessage: peer.Status,
+		}
+		chatThreads = append(chatThreads, peerData)
+	}
+
+	return chatThreads
+}
+
+func getPendingRequests(ctx context.Context) []any {
+	pendingRequests := []db.ConnectionRequests{}
+	_ = db.Get().Where("status = ?", constants.RequestStatusAwaitingDecision).Find(&pendingRequests)
+
+	pendingReqs := []any{}
+	for _, pr := range pendingRequests {
+		log.WithContext(ctx).Infof("found pending request from peer id %s", pr.PeerID)
+		peerData := models.PeerData{
+			PeerID:   pr.PeerID,
+			Username: pr.Username,
+			Avatar:   pr.AvatarUrl,
+		}
+		pendingReqs = append(pendingReqs, peerData)
+	}
+
+	return pendingReqs
+}
+
+func (c *Chat) onChatThreadTap(peerID, username, avatarUrl string) {
+	err := c.openChatAvatarUrl.Set(avatarUrl)
+	if err != nil {
+		log.Infof("error setting open chat avatar url %s", err.Error())
+	}
+
+	err = c.openChatUsername.Set(username)
+	if err != nil {
+		log.Infof("error setting open chat username %s", err.Error())
+	}
 }

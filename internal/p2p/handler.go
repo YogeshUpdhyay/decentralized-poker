@@ -70,7 +70,7 @@ func handleHandshakeAck(ctx context.Context, peerID string, hsAck p2pModels.Hand
 	tx := db.Get().
 		Where(&db.ConnectionRequests{
 			PeerID: peerID,
-			Status: constants.RequestStatusAwaitingDecision,
+			Status: constants.RequestStatusSent,
 		}).
 		First(&req)
 	if tx.Error != nil {

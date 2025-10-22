@@ -178,7 +178,12 @@ func handleIncomingRequest(ctx context.Context, peerID, decision string, pending
 	log.WithContext(ctx).Info("handshake decision sent to peer")
 
 	dbConnReq := db.ConnectionRequests{}
-	tx := db.Get().Where("peer_id = ?", peerID).First(&dbConnReq)
+	tx := db.Get().
+		Where(&db.ConnectionRequests{
+			PeerID: peerID,
+			Status: constants.RequestStatusAwaitingDecision,
+		}).
+		First(&dbConnReq)
 	if tx.Error != nil {
 		log.WithContext(ctx).WithError(tx.Error).Errorf("error fetching connection request from peer %s", peerID)
 		return

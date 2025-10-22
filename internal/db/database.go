@@ -27,6 +27,7 @@ func Initialize(ctx context.Context) error {
 		&UserMetadata{},
 		&ConnectionRequests{},
 		&PeerInfo{},
+		&ChatMessage{},
 	)
 
 	db = conn

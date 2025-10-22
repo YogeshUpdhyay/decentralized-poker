@@ -43,7 +43,20 @@ func (h *DefaultHandler) HandleMessage(ctx context.Context, msg *p2pModels.Envel
 }
 
 func handleChatMessage(peerID string, chat p2pModels.ChatPayload) {
-	panic("unimplemented")
+	msg := db.ChatMessage{
+		From:    peerID,
+		Message: chat.Message,
+		To:      GetServer().GetNodeID(context.TODO()),
+	}
+	tx := db.Get().Create(&msg)
+	if tx.Error != nil {
+		log.Infof("error creating a new message: %s", tx.Error.Error())
+	}
+
+	eventbus.Get().Publish(constants.EventNewMessage, eventModels.NewMessageEventData{
+		From:    peerID,
+		Message: chat.Message,
+	})
 }
 
 func handleRejection(ctx context.Context, peerID string) {
@@ -108,6 +121,8 @@ func handleHandshakeAck(ctx context.Context, peerID string, hsAck p2pModels.Hand
 			Infof("error creating peer info %s", tx.Error.Error())
 		return
 	}
+
+	eventbus.Get().Publish(constants.EventThreadListUpdated, nil)
 }
 
 func handleHandshake(ctx context.Context, peerID string, hs p2pModels.HandShake) {

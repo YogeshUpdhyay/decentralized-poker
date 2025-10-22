@@ -14,6 +14,9 @@ import (
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/db"
 	"github.com/YogeshUpdhyay/ypoker/internal/eventbus"
+	eventModels "github.com/YogeshUpdhyay/ypoker/internal/eventbus/models"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
+	p2pModels "github.com/YogeshUpdhyay/ypoker/internal/p2p/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/components"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/models"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
@@ -23,8 +26,7 @@ import (
 type Chat struct {
 	chatThreadsData    binding.UntypedList
 	pendingRequestData binding.UntypedList
-	openChatUsername   binding.String
-	openChatAvatarUrl  binding.String
+	currentChatData    binding.Untyped
 }
 
 func (c *Chat) OnShow(ctx context.Context) {
@@ -36,8 +38,7 @@ func (c *Chat) OnShow(ctx context.Context) {
 	c.pendingRequestData = binding.NewUntypedList()
 	c.pendingRequestData.Set(getPendingRequests(ctx))
 
-	c.openChatUsername = binding.NewString()
-	c.openChatAvatarUrl = binding.NewString()
+	c.currentChatData = binding.NewUntyped()
 }
 
 func (c *Chat) OnHide(_ context.Context) {
@@ -47,9 +48,10 @@ func (c *Chat) OnHide(_ context.Context) {
 func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
 	// defining the main chat layout
 	secondContent := c.getEmptyChatPlaceholder()
-	if username, _ := c.openChatUsername.Get(); username != constants.Empty {
-		avatarUrl, _ := c.openChatAvatarUrl.Get()
-		secondContent = c.getChatLayout(ctx, username, avatarUrl)
+	currentChatData, _ := c.currentChatData.Get()
+	if currentChatData != nil {
+		currentChatPeerData := currentChatData.(models.PeerData)
+		secondContent = c.getChatLayout(ctx, currentChatPeerData)
 	}
 
 	chat := container.NewHSplit(
@@ -58,15 +60,23 @@ func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
 	)
 	chat.SetOffset(0.25)
 
-	c.openChatUsername.AddListener(binding.NewDataListener(func() {
-		log.WithContext(ctx).Info("open chat username changed, refreshing the layout")
-		username, _ := c.openChatUsername.Get()
-		if username == constants.Empty {
+	c.currentChatData.AddListener(binding.NewDataListener(func() {
+		log.WithContext(ctx).Info("open chat data changed, refreshing the layout")
+		currentChatData, err := c.currentChatData.Get()
+		if err != nil {
+			log.WithContext(ctx).Infof("error getting current chat data")
+		}
+
+		if currentChatData == nil {
+			return
+		}
+
+		currentChatPeerData := currentChatData.(models.PeerData)
+		if currentChatPeerData.Username == constants.Empty {
 			log.WithContext(ctx).Info("no chat selected, showing empty placeholder")
 			return
 		}
-		avatarUrl, _ := c.openChatAvatarUrl.Get()
-		chat.Trailing = c.getChatLayout(ctx, username, avatarUrl)
+		chat.Trailing = c.getChatLayout(ctx, currentChatPeerData)
 		chat.Refresh()
 	}))
 
@@ -102,14 +112,14 @@ func (c *Chat) getEmptyChatPlaceholder() fyne.CanvasObject {
 	)
 }
 
-func (c *Chat) getChatLayout(ctx context.Context, username, avatarUrl string) fyne.CanvasObject {
+func (c *Chat) getChatLayout(ctx context.Context, currentChatPeerData models.PeerData) fyne.CanvasObject {
 	// username block with data binding
-	avatarUsername := canvas.NewText(username, color.White)
+	avatarUsername := canvas.NewText(currentChatPeerData.Username, color.White)
 	avatarUsername.TextSize = 16
 	avatarUsername.TextStyle.Bold = true
 
 	// avatar block with data binding
-	avatar := components.NewAvatar(avatarUrl)
+	avatar := components.NewAvatar(currentChatPeerData.Avatar)
 
 	// Create the username text for the chat header
 	textBox := canvas.NewRectangle(color.Transparent)
@@ -132,32 +142,57 @@ func (c *Chat) getChatLayout(ctx context.Context, username, avatarUrl string) fy
 
 		ctx = utils.UpdateParentInContext(ctx, list)
 
-		// testing  others message
-		// newPeerMessage := models.GetPeerMessage("MSo17", text)
-		// _ = messages.Append(newPeerMessage)
-		// chatMessagePeer := components.NewChatMessage(ctx, newPeerMessage)
-		// list.Add(chatMessagePeer)
-
 		newMessage := models.GetSelfMessage(text)
 		_ = messages.Append(newMessage)
 		chatMessage := components.NewChatMessage(ctx, newMessage)
 		list.Add(chatMessage)
 
 		// sending message to the peer
-		// peer := p2p.GetServer().GetPeerByUsername(username)
-		// if peer != nil {
-		// 	err := peer.Send([]byte(text))
-		// 	if err != nil {
-		// 		log.WithContext(ctx).WithError(err).Errorf("error sending message to peer %s", username)
-		// 	} else {
-		// 		log.WithContext(ctx).Infof("message sent to peer %s", username)
-		// 	}
-		// }
+		peer := p2p.GetServer().GetPeerFromPeerID(ctx, currentChatPeerData.PeerID)
+		if peer != nil {
+			msg := p2pModels.Envelope{
+				Type: p2pModels.MsgTypeChat,
+				Payload: utils.MarshalPayload(p2pModels.ChatPayload{
+					Message: text,
+				}),
+			}
+			err := peer.Send(&msg)
+			if err != nil {
+				log.WithContext(ctx).WithError(err).Errorf("error sending message to peer %s", currentChatPeerData.Username)
+			} else {
+				log.WithContext(ctx).Infof("message sent to peer %s", currentChatPeerData.Username)
+			}
+		}
+
+		// adding message to db
+		tx := db.Get().Create(&db.ChatMessage{
+			From:    p2p.GetServer().GetNodeID(ctx),
+			To:      currentChatPeerData.PeerID,
+			Message: text,
+		})
+		if tx.Error != nil {
+			log.WithContext(ctx).Infof("error writing chat to db: %s", tx.Error.Error())
+		}
 
 		entry.SetText("")
 		entry.FocusLost()
 	})
 	entry.OnSubmitted = func(s string) { send.OnTapped() }
+
+	eventbus.Get().Subscribe(constants.EventNewMessage, func(event eventbus.Event) {
+		messageData := event.Payload.(eventModels.NewMessageEventData)
+		if messageData.From != currentChatPeerData.PeerID {
+			return
+		}
+		chatMessage := components.NewChatMessage(
+			ctx,
+			models.GetPeerMessage(
+				messageData.From,
+				messageData.Message,
+			),
+		)
+		list.Add(chatMessage)
+	})
 
 	// Layout the chat UI using a border container
 	// Top: chat header with avatar and username
@@ -229,13 +264,13 @@ func getPendingRequests(ctx context.Context) []any {
 }
 
 func (c *Chat) onChatThreadTap(peerID, username, avatarUrl string) {
-	err := c.openChatAvatarUrl.Set(avatarUrl)
-	if err != nil {
-		log.Infof("error setting open chat avatar url %s", err.Error())
+	if err := c.currentChatData.Set(models.PeerData{
+		Username:    username,
+		PeerID:      peerID,
+		Avatar:      avatarUrl,
+		LastMessage: "...",
+	}); err != nil {
+		log.WithError(err).Info("error setting open chat data")
 	}
 
-	err = c.openChatUsername.Set(username)
-	if err != nil {
-		log.Infof("error setting open chat username %s", err.Error())
-	}
 }

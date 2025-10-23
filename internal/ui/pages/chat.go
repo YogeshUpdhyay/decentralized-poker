@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"fmt"
 	"image/color"
 	"strings"
 
@@ -86,6 +87,7 @@ func (c *Chat) Content(ctx context.Context) fyne.CanvasObject {
 func (c *Chat) getSideNav(ctx context.Context) fyne.CanvasObject {
 	// chat threads list
 	chatThreadsList := components.NewChatThreadListWithData(
+		ctx,
 		c.chatThreadsData,
 		c.onChatThreadTap,
 	)
@@ -182,8 +184,12 @@ func (c *Chat) getChatLayout(ctx context.Context, currentChatPeerData models.Pee
 	eventbus.Get().Subscribe(constants.EventNewMessage, func(event eventbus.Event) {
 		messageData := event.Payload.(eventModels.NewMessageEventData)
 		if messageData.From != currentChatPeerData.PeerID {
+			log.WithContext(ctx).Infof("current peer id is different")
 			return
 		}
+
+		ctx = utils.UpdateParentInContext(ctx, list)
+
 		chatMessage := components.NewChatMessage(
 			ctx,
 			models.GetPeerMessage(
@@ -192,6 +198,7 @@ func (c *Chat) getChatLayout(ctx context.Context, currentChatPeerData models.Pee
 			),
 		)
 		list.Add(chatMessage)
+		log.WithContext(ctx).Infof("message added to list")
 	})
 
 	// Layout the chat UI using a border container
@@ -263,7 +270,31 @@ func getPendingRequests(ctx context.Context) []any {
 	return pendingReqs
 }
 
-func (c *Chat) onChatThreadTap(peerID, username, avatarUrl string) {
+func (c *Chat) onChatThreadTap(ctx context.Context, username, avatarUrl, peerID string) {
+	// check if the peer id in the active peers
+	server := p2p.GetServer()
+	peer := server.GetPeerFromPeerID(ctx, peerID)
+	if peer == nil {
+		// attempt connection
+		peerInfo := db.PeerInfo{PeerID: peerID}
+		tx := db.Get().First(&peerInfo)
+		if tx.Error != nil {
+			log.WithContext(ctx).Infof("error fetching the peer info to establish connection %s", tx.Error.Error())
+			if err := c.currentChatData.Set(models.PeerData{
+				Username:    username,
+				PeerID:      peerID,
+				Avatar:      avatarUrl,
+				LastMessage: "...",
+			}); err != nil {
+				log.WithError(err).Info("error setting open chat data")
+			}
+			return
+		}
+
+		// build connection string
+		connectStr := fmt.Sprintf("%s/p2p/%s", peerInfo.Address, peerInfo.PeerID)
+		server.Connect(ctx, connectStr)
+	}
 	if err := c.currentChatData.Set(models.PeerData{
 		Username:    username,
 		PeerID:      peerID,

@@ -44,5 +44,5 @@ const (
 	EventNewMessage           = "new_message"
 
 	// dummy
-	DummyAvatarUrl = "https://api.dicebear.com/9.x/adventurer-neutral/svg?seed=Easton&radius=50&backgroundType=solid,gradientLinear"
+	DummyAvatarUrl = "https://avatar.iran.liara.run/username?username=dummy&bold=false&length=1"
 )

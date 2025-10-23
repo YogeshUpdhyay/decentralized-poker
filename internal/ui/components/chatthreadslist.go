@@ -1,6 +1,8 @@
 package components
 
 import (
+	"context"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -11,12 +13,13 @@ import (
 
 type ChatThreadsList struct {
 	widget.BaseWidget
+	ctx          context.Context
 	ThreadsData  binding.UntypedList
-	OnItemTapped func(peerID, username, avatarUrl string)
+	OnItemTapped func(ctx context.Context, peerID, username, avatarUrl string)
 }
 
-func NewChatThreadListWithData(data binding.UntypedList, onItemTapped func(peerID, username, avatarUrl string)) *ChatThreadsList {
-	ctl := &ChatThreadsList{ThreadsData: data, OnItemTapped: onItemTapped}
+func NewChatThreadListWithData(ctx context.Context, data binding.UntypedList, onItemTapped func(ctx context.Context, peerID, username, avatarUrl string)) *ChatThreadsList {
+	ctl := &ChatThreadsList{ThreadsData: data, OnItemTapped: onItemTapped, ctx: ctx}
 	ctl.ExtendBaseWidget(ctl)
 	data.AddListener(binding.NewDataListener(func() {
 		log.Info("chat threads data changed, refreshing the list")
@@ -46,9 +49,11 @@ func (r *chatThreadsListRenderer) Refresh() {
 			peerData, ok := t.(models.PeerData)
 			if ok {
 				r.content.Add(NewChatThread(
+					r.list.ctx,
 					peerData.Username,
 					peerData.Avatar,
 					peerData.LastMessage,
+					peerData.PeerID,
 					r.list.OnItemTapped,
 				))
 			}

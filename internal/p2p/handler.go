@@ -57,6 +57,7 @@ func handleChatMessage(peerID string, chat p2pModels.ChatPayload) {
 		From:    peerID,
 		Message: chat.Message,
 	})
+	log.Info("message event sent")
 }
 
 func handleRejection(ctx context.Context, peerID string) {
@@ -79,8 +80,21 @@ func handleHandshakeAck(ctx context.Context, peerID string, hsAck p2pModels.Hand
 		return
 	}
 
+	// check if peer is in the db
+	peerInfo := db.PeerInfo{PeerID: peerID}
+	tx := db.Get().First(&peerInfo)
+	if tx.Error != nil {
+		log.WithContext(ctx).Infof("error getting peer info %s", tx.Error.Error())
+		return
+	}
+
+	if peerInfo.Username != constants.Empty {
+		// already known user
+		return
+	}
+
 	var req db.ConnectionRequests
-	tx := db.Get().
+	tx = db.Get().
 		Where(&db.ConnectionRequests{
 			PeerID: peerID,
 			Status: constants.RequestStatusSent,
@@ -106,7 +120,7 @@ func handleHandshakeAck(ctx context.Context, peerID string, hsAck p2pModels.Hand
 		return
 	}
 
-	peerInfo := db.PeerInfo{
+	peerInfo = db.PeerInfo{
 		PeerID:    peerID,
 		Username:  hsAck.UserInfo.Username,
 		AvatarUrl: hsAck.UserInfo.AvatarUrl,
@@ -139,6 +153,34 @@ func handleHandshake(ctx context.Context, peerID string, hs p2pModels.HandShake)
 		})
 	}
 
+	// check if peer is in the db
+	peerInfo := db.PeerInfo{PeerID: peerID}
+	tx := db.Get().First(&peerInfo)
+	if tx.Error != nil {
+		log.WithContext(ctx).Infof("error getting peer info %s", tx.Error.Error())
+		return
+	}
+
+	if peerInfo.Username != constants.Empty {
+		// already an added peer just send ack
+		// fetching usermetadata
+		userMetadata := db.UserMetadata{}
+		db.Get().First(&userMetadata)
+
+		peer.Send(&p2pModels.Envelope{
+			Type: p2pModels.MsgTypeHandshakeAck,
+			Payload: utils.MarshalPayload(p2pModels.HandShake{
+				Version: utils.DefaultAppConfig().Version,
+				UserInfo: p2pModels.UserInfo{
+					Username:  userMetadata.Username,
+					AvatarUrl: userMetadata.AvatarUrl,
+				},
+			}),
+		})
+
+		return
+	}
+
 	// storing the connection request awaiting approval
 	connectionReq := db.ConnectionRequests{
 		PeerID:    peerID,
@@ -147,7 +189,7 @@ func handleHandshake(ctx context.Context, peerID string, hs p2pModels.HandShake)
 		AvatarUrl: hs.UserInfo.AvatarUrl,
 		Address:   peer.GetMultiAddrs(ctx).String(),
 	}
-	tx := db.Get().Create(&connectionReq)
+	tx = db.Get().Create(&connectionReq)
 	if tx.Error != nil {
 		log.WithContext(ctx).Infof("error adding connection request to the db: %s", tx.Error.Error())
 		return

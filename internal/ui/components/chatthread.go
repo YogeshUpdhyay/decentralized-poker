@@ -1,6 +1,7 @@
 package components
 
 import (
+	"context"
 	"image/color"
 
 	"fyne.io/fyne/v2"
@@ -14,15 +15,19 @@ type ChatThread struct {
 	Username    string
 	AvatarURL   string
 	LastMessage string
-	OnTapped    func(username, avatarUrl, peerID string)
+	PeerID      string
+	Ctx         context.Context
+	OnTapped    func(ctx context.Context, username, avatarUrl, peerID string)
 }
 
-func NewChatThread(username, avatarURL, lastMessage string, onTap func(username, avatarUrl, peerID string)) fyne.CanvasObject {
+func NewChatThread(ctx context.Context, username, avatarURL, lastMessage, peerID string, onTap func(ctx context.Context, username, avatarUrl, peerID string)) fyne.CanvasObject {
 	// Build and return a container with avatar, username, and last message
 	chatThread := &ChatThread{
+		Ctx:         ctx,
 		Username:    username,
 		AvatarURL:   avatarURL,
 		LastMessage: lastMessage,
+		PeerID:      peerID,
 		OnTapped:    onTap,
 	}
 	chatThread.ExtendBaseWidget(chatThread)
@@ -56,7 +61,7 @@ func (c *ChatThread) CreateRenderer() fyne.WidgetRenderer {
 
 func (c *ChatThread) Tapped(_ *fyne.PointEvent) {
 	if c.OnTapped != nil {
-		c.OnTapped("", c.Username, c.AvatarURL)
+		c.OnTapped(c.Ctx, c.Username, c.AvatarURL, c.PeerID)
 	}
 }
 

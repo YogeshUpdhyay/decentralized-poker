@@ -52,7 +52,7 @@ func (p *Peer) ReadLoop(ctx context.Context, msgCh chan *p2pModels.Envelope, del
 
 		// Add peer ID from connection if missing
 		if envelope.From == "" {
-			envelope.From = p.conn.Conn().RemotePeer().ShortString()
+			envelope.From = p.conn.Conn().RemotePeer().String()
 		}
 		log.WithContext(ctx).Infof("new message received from %s of type %s", envelope.From, envelope.Type)
 		msgCh <- &envelope

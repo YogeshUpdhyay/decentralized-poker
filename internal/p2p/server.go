@@ -99,7 +99,7 @@ func (s *Server) loop(ctx context.Context) {
 			s.handler.HandleMessage(ctx, msg)
 		case peerId := <-s.deletePeer:
 			// connection is closed removing from peers
-			delete(s.peers, string(peerId.ShortString()))
+			delete(s.peers, string(peerId.String()))
 			log.Infof("player disconnected %s", peerId.String())
 		}
 	}
@@ -137,7 +137,7 @@ func (s *Server) Connect(ctx context.Context, remoteAddr string) (*Peer, error) 
 	peer := &Peer{
 		conn:   stream,
 		Status: constants.ConnectionStateActive,
-		PeerID: stream.Conn().RemotePeer().ShortString(),
+		PeerID: stream.Conn().RemotePeer().String(),
 	}
 
 	// send handshake message
@@ -149,7 +149,7 @@ func (s *Server) Connect(ctx context.Context, remoteAddr string) (*Peer, error) 
 
 	// adding this pending connection to db
 	connectionRequest := db.ConnectionRequests{
-		PeerID:  stream.Conn().RemotePeer().ShortString(),
+		PeerID:  stream.Conn().RemotePeer().String(),
 		Status:  constants.RequestStatusSent,
 		Address: peer.GetMultiAddrs(ctx).String(),
 	}
@@ -205,7 +205,7 @@ func (s *Server) sendHandshake(ctx context.Context, p *Peer) error {
 
 	handshakeEnvelope := p2pModels.Envelope{
 		Type: p2pModels.MsgTypeHandshake,
-		From: s.transport.host.ID().ShortString(),
+		From: s.transport.host.ID().String(),
 		Payload: utils.MarshalPayload(p2pModels.HandShake{
 			Version: utils.DefaultAppConfig().Version,
 			UserInfo: p2pModels.UserInfo{
@@ -225,7 +225,7 @@ func (s *Server) sendHandshake(ctx context.Context, p *Peer) error {
 
 func (s *Server) handleNewStream(ctx context.Context, conn libp2pnetwork.Stream) string {
 	// updating peer list
-	peerId := string(conn.Conn().RemotePeer().ShortString())
+	peerId := string(conn.Conn().RemotePeer().String())
 	peer := Peer{
 		conn:   conn,
 		Status: constants.ConnectionStateActive,

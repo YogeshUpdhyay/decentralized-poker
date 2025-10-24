@@ -11,15 +11,15 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/assets"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 func NewSideNavTopBar(ctx context.Context) *fyne.Container {
 	// logo
-	logo := canvas.NewImageFromFile(constants.LogoPath)
+	logo := canvas.NewImageFromResource(assets.ResourceYChatPng)
 	logo.FillMode = canvas.ImageFillContain
 	logo.SetMinSize(fyne.NewSize(40, 40))
 

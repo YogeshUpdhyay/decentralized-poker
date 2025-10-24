@@ -190,13 +190,9 @@ func (c *Chat) getChatLayout(ctx context.Context, currentChatPeerData models.Pee
 
 		ctx = utils.UpdateParentInContext(ctx, list)
 
-		chatMessage := components.NewChatMessage(
-			ctx,
-			models.GetPeerMessage(
-				messageData.From,
-				messageData.Message,
-			),
-		)
+		newMessage := models.GetPeerMessage(messageData.From, messageData.Message)
+		_ = messages.Append(newMessage)
+		chatMessage := components.NewChatMessage(ctx, newMessage)
 		list.Add(chatMessage)
 		log.WithContext(ctx).Infof("message added to list")
 	})

@@ -1,5 +1,6 @@
 bin
 .yoker
 .vscode
-tmp/*
-testdata/*
+tmp
+testdata
+dist

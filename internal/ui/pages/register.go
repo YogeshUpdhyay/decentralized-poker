@@ -12,6 +12,7 @@ import (
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
 	"github.com/YogeshUpdhyay/ypoker/internal/db"
 	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
+	"github.com/YogeshUpdhyay/ypoker/internal/ui/assets"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/forms"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
@@ -38,7 +39,7 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 	underLayContainer.StrokeWidth = 2
 
 	// logo
-	logo := canvas.NewImageFromFile(constants.LogoPath)
+	logo := canvas.NewImageFromResource(assets.ResourceYChatPng)
 	logo.FillMode = canvas.ImageFillContain
 	logo.SetMinSize(fyne.NewSize(100, 100))
 

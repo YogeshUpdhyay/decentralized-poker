@@ -2,6 +2,7 @@ package pages
 
 import (
 	"context"
+	"fmt"
 	"image/color"
 	"time"
 
@@ -87,7 +88,7 @@ func (l *Register) Content(ctx context.Context) fyne.CanvasObject {
 
 		// update usermetadata
 		userMetadata.Username = username
-		userMetadata.AvatarUrl = constants.DummyAvatarUrl
+		userMetadata.AvatarUrl = fmt.Sprintf(constants.AvatarUrlTemplate, username)
 		userMetadata.LastLoginTs = time.Now()
 		userMetadata.CreateTs = time.Now()
 		userMetadata.PeerID = server.GetNodeID(ctx)

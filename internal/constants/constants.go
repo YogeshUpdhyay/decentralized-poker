@@ -44,5 +44,6 @@ const (
 	EventNewMessage           = "new_message"
 
 	// dummy
-	DummyAvatarUrl = "https://avatar.iran.liara.run/username?username=dummy&bold=false&length=1"
+	DummyAvatarUrl    = "https://avatar.iran.liara.run/username?username=dummy&bold=false&length=1"
+	AvatarUrlTemplate = "https://avatar.iran.liara.run/username?username=%s&bold=true&length=1"
 )

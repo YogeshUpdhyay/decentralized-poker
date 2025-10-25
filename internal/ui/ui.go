@@ -2,12 +2,14 @@ package ui
 
 import (
 	"context"
+	"time"
 
 	"fyne.io/fyne/v2"
 	fyneApp "fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/theme"
 
 	"github.com/YogeshUpdhyay/ypoker/internal/constants"
+	"github.com/YogeshUpdhyay/ypoker/internal/p2p"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/pages"
 	"github.com/YogeshUpdhyay/ypoker/internal/ui/router"
 	"github.com/YogeshUpdhyay/ypoker/internal/utils"
@@ -32,10 +34,10 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	router := router.NewRouter(ctx, rootCanvas)
 
 	// starting the server testing block
-	// serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
-	// server := p2p.NewServer(serverConfig)
-	// go server.Start(ctx, "oggy@123")
-	// time.Sleep(2 * time.Second)
+	serverConfig := p2p.ServerConfig{ListenAddr: appConfig.Port, Version: appConfig.Version, ServerName: appConfig.Name}
+	server := p2p.NewServer(serverConfig)
+	go server.Start(ctx, "oggy@123")
+	time.Sleep(2 * time.Second)
 
 	// registering pages to router
 	router.Register(ctx, constants.LoginRoute, &pages.Login{})
@@ -43,7 +45,7 @@ func (ui *DefaultUI) StartUI(ctx context.Context, isIdentityInitialized bool) er
 	router.Register(ctx, constants.RegisterRoute, &pages.Register{})
 	router.Navigate(ctx, constants.RegisterRoute)
 	if isIdentityInitialized {
-		router.Navigate(ctx, constants.LoginRoute)
+		router.Navigate(ctx, constants.ChatRoute)
 	}
 
 	// content is set by the router

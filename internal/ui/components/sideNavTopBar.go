@@ -58,17 +58,22 @@ func getConnectionPopUp(ctx context.Context, qrPath string, myAddresses []string
 	modalTitleContainer := container.NewPadded(container.NewCenter(modalTitle))
 
 	//connection addresses
-	connectionAddresses := container.NewPadded(widget.NewLabel(
-		strings.Join(myAddresses, "\n"),
-	))
+	connectionEntry := widget.NewMultiLineEntry()
+	connectionEntry.SetText(strings.Join(myAddresses, "\n"))
+	connectionEntry.Disable()
+	connectionAddresses := container.NewPadded(connectionEntry)
 
 	qrImage := canvas.NewImageFromFile(qrPath)
 	qrImage.FillMode = canvas.ImageFillContain
 	qrImage.SetMinSize(fyne.NewSize(200, 200))
 	qrImageContainer := container.NewPadded(container.NewCenter(qrImage))
 
+	widthContainer := canvas.NewRectangle(color.Transparent)
+	widthContainer.SetMinSize(fyne.NewSize(450, 1))
+
 	// Create the content for the pop-up
 	content := container.NewVBox(
+		widthContainer,
 		modalTitleContainer,
 		connectionAddresses,
 		qrImageContainer,
